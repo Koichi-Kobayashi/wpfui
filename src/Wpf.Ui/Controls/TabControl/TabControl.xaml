@@ -55,8 +55,7 @@
                                             x:Name="Border"
                                             Background="{TemplateBinding Background}"
                                             BorderBrush="{TemplateBinding BorderBrush}"
-                                            BorderThickness="{TemplateBinding BorderThickness}"
-                                            CornerRadius="4"
+                                            BorderThickness="0"
                                             Padding="{TemplateBinding Padding}">
                                             <ContentPresenter
                                                 HorizontalAlignment="Center"
@@ -144,7 +143,7 @@
                             <Grid>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="24" />
                                 </Grid.ColumnDefinitions>
                                 <ContentPresenter
                                     x:Name="ContentSite"
@@ -159,7 +158,7 @@
                                     Grid.Column="1"
                                     Width="20"
                                     Height="20"
-                                    Margin="4,0,0,0"
+                                    Margin="0"
                                     Padding="0"
                                     HorizontalAlignment="Center"
                                     VerticalAlignment="Center"

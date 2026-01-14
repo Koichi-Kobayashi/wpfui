@@ -285,6 +285,12 @@ public class FluentWindow : System.Windows.Window
         {
             if (Utilities.IsCompositionEnabled)
             {
+                // Keep a small, predictable resize border. Using CaptionHeight makes the resize area
+                // excessively large on some systems (e.g. 22px+), which feels wrong.
+                Thickness resizeBorderThickness = ResizeMode == ResizeMode.NoResize
+                    ? default
+                    : new Thickness(4, 4, 4, 4);
+
                 WindowChrome.SetWindowChrome(
                     this,
                     new WindowChrome
@@ -295,8 +301,7 @@ public class FluentWindow : System.Windows.Window
                             WindowBackdropType == WindowBackdropType.None
                                 ? new Thickness(0.00001)
                                 : new Thickness(-1), // 0.00001 so there's no glass frame drawn around the window, but the border is still drawn.
-                        ResizeBorderThickness =
-                            ResizeMode == ResizeMode.NoResize ? default : new Thickness(4),
+                        ResizeBorderThickness = resizeBorderThickness,
                         UseAeroCaptionButtons = false,
                     }
                 );

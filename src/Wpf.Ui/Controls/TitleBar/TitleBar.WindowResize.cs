@@ -43,7 +43,7 @@ public partial class TitleBar
 
     private bool _systemParamsSubscribed;
 
-    private IntPtr GetWindowBorderHitTestResult(IntPtr hwnd, IntPtr lParam)
+    private IntPtr GetWindowBorderHitTestResult(IntPtr hwnd, IntPtr lParam, bool isMouseOverHeaderContent)
     {
         if (!PInvoke.GetWindowRect(new HWND(hwnd), out RECT windowRect))
         {
@@ -60,13 +60,102 @@ public partial class TitleBar
         int x = (short)(lp & 0xFFFF);
         int y = (short)((lp >> 16) & 0xFFFF);
 
+        // Prioritize resize area detection for top-left and top-right corners.
+        // Use a small fixed physical pixel area to avoid making the resize cursor appear too early.
+        // (The WM_NCHITTEST coordinates are in physical screen pixels.)
+        const int cornerResizeSize = 4;
+
+        // Return HTTOPLEFT if within the cornerResizeSize square area of the top-left corner
+        bool isInTopLeftCorner =
+            x >= windowRect.left &&
+            x < windowRect.left + cornerResizeSize &&
+            y >= windowRect.top &&
+            y < windowRect.top + cornerResizeSize;
+
+        if (isInTopLeftCorner)
+        {
+            return (IntPtr)PInvoke.HTTOPLEFT;
+        }
+
+        // Return HTTOPRIGHT if within the cornerResizeSize square area of the top-right corner
+        bool isInTopRightCorner =
+            x >= windowRect.right - cornerResizeSize &&
+            x <= windowRect.right &&
+            y >= windowRect.top &&
+            y < windowRect.top + cornerResizeSize;
+
+        // Return HTTOPRIGHT if within the cornerResizeSize square area of the top-right corner
+        // This ensures resize detection takes precedence over button hit testing
+        if (isInTopRightCorner)
+        {
+            return (IntPtr)PInvoke.HTTOPRIGHT;
+        }
+
+        // If the pointer is over interactive title-bar content (Header/TrailingContent),
+        // don't report resize hit-test results (except for the corner zones above).
+        // This prevents custom buttons (commonly hosted in TrailingContent) from becoming
+        // "resizable" on hover.
+        if (isMouseOverHeaderContent)
+        {
+            return (IntPtr)PInvoke.HTNOWHERE;
+        }
+
+        // Get the width of the title bar button area (total width of minimize, maximize/restore, and close buttons)
+        // SM_CXSIZE is the width of minimize/maximize buttons, typically about 46 pixels
+        // With 3 buttons, the total is approximately 138 pixels (button width × 3)
+        int buttonAreaWidth;
+        try
+        {
+            int buttonWidth = PInvoke.GetSystemMetrics(SYSTEM_METRICS_INDEX.SM_CXSIZE);
+
+            // Total width of 3 buttons (minimize, maximize/restore, close)
+            // Add some margin as the close button may be slightly larger
+            buttonAreaWidth = (buttonWidth * 3) + 2;
+        }
+        catch
+        {
+            // Fallback: use default value
+            buttonAreaWidth = 138;
+        }
+
         uint hit = 0u;
 
 #pragma warning disable
         if (x < windowRect.left + _borderX)
             hit |= 0b0001u; // left
-        if (x >= windowRect.right - _borderX)
-            hit |= 0b0010u; // right
+        
+        bool isInTitleBar = y < windowRect.top + _borderY;
+        bool isInButtonArea = x >= windowRect.right - buttonAreaWidth;
+        
+        // Right edge resize detection
+        // When on the title bar, allow resizing on the left side of the button area as well
+        if (isInTitleBar)
+        {
+            // When in the title bar, perform resize detection on the left side of the button area (top-right corner resize area)
+            // Left side of button area and within the right edge resize area
+            // Keep this area small (fixed pixels) so it doesn't feel like the buttons are "stealing" mouse space.
+            const int titleBarRightResizeSize = cornerResizeSize;
+            if (
+                x >= windowRect.right - buttonAreaWidth - titleBarRightResizeSize
+                && x < windowRect.right - buttonAreaWidth
+            )
+            {
+                // Resize area on the left side of button area
+                hit |= 0b0010u; // right
+            }
+            else if (x >= windowRect.right - _borderX && !isInButtonArea)
+            {
+                // Right edge resize area outside button area
+                hit |= 0b0010u; // right
+            }
+        }
+        else
+        {
+            // For areas outside the title bar, perform normal right edge resize detection
+            if (x >= windowRect.right - _borderX)
+                hit |= 0b0010u; // right
+        }
+        
         if (y < windowRect.top + _borderY)
             hit |= 0b0100u; // top
         if (y >= windowRect.bottom - _borderY)

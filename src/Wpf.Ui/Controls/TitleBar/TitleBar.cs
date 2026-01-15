@@ -675,6 +675,7 @@ public partial class TitleBar : System.Windows.Controls.Control, IThemeControl
         }
 
         bool isMouseOverHeaderContent = false;
+        bool isMouseOverButtons = false;
         IntPtr htResult = (IntPtr)PInvoke.HTNOWHERE;
 
         // For WM_NCHITTEST, perform resize detection first, and skip button hit testing if top-left or top-right corner resize detection succeeds
@@ -689,25 +690,61 @@ public partial class TitleBar : System.Windows.Controls.Control, IThemeControl
                 isMouseOverHeaderContent =
                     (headerLeftUIElement is not null
                         && headerLeftUIElement != _titleBlock
-                        && headerLeftUIElement.IsMouseOverElement(lParam))
-                    || (headerCenterUIElement?.IsMouseOverElement(lParam) ?? false)
-                    || (headerRightUiElement?.IsMouseOverElement(lParam) ?? false);
+                        && TitleBarButton.IsMouseOverNonClient(headerLeftUIElement, lParam))
+                    || (headerCenterUIElement is not null
+                        && TitleBarButton.IsMouseOverNonClient(headerCenterUIElement, lParam))
+                    || (headerRightUiElement is not null
+                        && TitleBarButton.IsMouseOverNonClient(headerRightUiElement, lParam));
+            }
+
+            foreach (TitleBarButton button in _buttons)
+            {
+                if (button is null)
+                {
+                    continue;
+                }
+
+                if (TitleBarButton.IsMouseOverNonClient(button, lParam))
+                {
+                    isMouseOverButtons = true;
+                    break;
+                }
             }
 
             htResult = GetWindowBorderHitTestResult(hwnd, lParam, isMouseOverHeaderContent);
-            
+
             // Skip button hit testing if top-left or top-right corner resize detection succeeds
             if (htResult == (IntPtr)PInvoke.HTTOPLEFT || htResult == (IntPtr)PInvoke.HTTOPRIGHT)
             {
                 handled = true;
                 return htResult;
             }
+
+            if (isMouseOverButtons)
+            {
+                htResult = (IntPtr)PInvoke.HTNOWHERE;
+            }
         }
         // For WM_NCLBUTTONDOWN, also skip button hit testing if within top-left or top-right corner resize area
         // This ensures resize handling works correctly
         else if (message == PInvoke.WM_NCLBUTTONDOWN)
         {
+            foreach (TitleBarButton button in _buttons)
+            {
+                if (button is null)
+                {
+                    continue;
+                }
+
+                if (TitleBarButton.IsMouseOverNonClient(button, lParam))
+                {
+                    isMouseOverButtons = true;
+                    break;
+                }
+            }
+
             htResult = GetWindowBorderHitTestResult(hwnd, lParam, false);
+
             if (htResult == (IntPtr)PInvoke.HTTOPLEFT || htResult == (IntPtr)PInvoke.HTTOPRIGHT)
             {
                 // If within top-left or top-right corner resize area, skip button hit testing
@@ -752,14 +789,14 @@ public partial class TitleBar : System.Windows.Controls.Control, IThemeControl
 
         switch (message)
         {
-            case PInvoke.WM_NCHITTEST when CloseWindowByDoubleClickOnIcon && _icon.IsMouseOverElement(lParam):
+            case PInvoke.WM_NCHITTEST when CloseWindowByDoubleClickOnIcon && TitleBarButton.IsMouseOverNonClient(_icon, lParam):
                 // Ideally, clicking on the icon should open the system menu, but when the system menu is opened manually, double-clicking on the icon does not close the window
                 handled = true;
                 return (IntPtr)PInvoke.HTSYSMENU;
             case PInvoke.WM_NCHITTEST when htResult != (IntPtr)PInvoke.HTNOWHERE:
                 handled = true;
                 return htResult;
-            case PInvoke.WM_NCHITTEST when this.IsMouseOverElement(lParam) && !isMouseOverHeaderContent:
+            case PInvoke.WM_NCHITTEST when TitleBarButton.IsMouseOverNonClient(this, lParam) && !isMouseOverHeaderContent:
                 handled = true;
                 return (IntPtr)PInvoke.HTCAPTION;
             default:

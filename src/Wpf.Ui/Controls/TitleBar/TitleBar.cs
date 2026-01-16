@@ -711,10 +711,10 @@ public partial class TitleBar : System.Windows.Controls.Control, IThemeControl
                 }
             }
 
-            htResult = GetWindowBorderHitTestResult(hwnd, lParam, isMouseOverHeaderContent);
+            htResult = GetWindowBorderHitTestResult(hwnd, lParam);
 
-            // Skip button hit testing if top-left or top-right corner resize detection succeeds
-            if (htResult == (IntPtr)PInvoke.HTTOPLEFT || htResult == (IntPtr)PInvoke.HTTOPRIGHT)
+            // If resize hit test succeeds, let Windows handle it
+            if (htResult != (IntPtr)PInvoke.HTNOWHERE)
             {
                 handled = true;
                 return htResult;
@@ -725,10 +725,10 @@ public partial class TitleBar : System.Windows.Controls.Control, IThemeControl
                 htResult = (IntPtr)PInvoke.HTNOWHERE;
             }
         }
-        // For WM_NCLBUTTONDOWN, also skip button hit testing if within top-left or top-right corner resize area
-        // This ensures resize handling works correctly
         else if (message == PInvoke.WM_NCLBUTTONDOWN)
         {
+            // For WM_NCLBUTTONDOWN, also skip button hit testing if within top-left or top-right corner resize area
+            // This ensures resize handling works correctly
             foreach (TitleBarButton button in _buttons)
             {
                 if (button is null)
@@ -743,11 +743,11 @@ public partial class TitleBar : System.Windows.Controls.Control, IThemeControl
                 }
             }
 
-            htResult = GetWindowBorderHitTestResult(hwnd, lParam, false);
+            htResult = GetWindowBorderHitTestResult(hwnd, lParam);
 
-            if (htResult == (IntPtr)PInvoke.HTTOPLEFT || htResult == (IntPtr)PInvoke.HTTOPRIGHT)
+            if (htResult != (IntPtr)PInvoke.HTNOWHERE)
             {
-                // If within top-left or top-right corner resize area, skip button hit testing
+                // If within resize area, skip button hit testing
                 // and let Windows handle the default resize processing
                 handled = false;
                 return IntPtr.Zero;

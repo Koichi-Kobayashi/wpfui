@@ -697,6 +697,9 @@ public partial class TitleBar : System.Windows.Controls.Control, IThemeControl
                         && TitleBarButton.IsMouseOverNonClient(headerRightUiElement, lParam));
             }
 
+            TitleBarButton? rightmostButton = null;
+            double rightmostRightEdge = double.MinValue;
+
             foreach (TitleBarButton button in _buttons)
             {
                 if (button is null)
@@ -704,10 +707,28 @@ public partial class TitleBar : System.Windows.Controls.Control, IThemeControl
                     continue;
                 }
 
+                try
+                {
+                    if (PresentationSource.FromVisual(button) is not null)
+                    {
+                        Point buttonTopLeft = button.PointToScreen(new Point(0, 0));
+                        double buttonRightEdge = buttonTopLeft.X + button.RenderSize.Width;
+
+                        if (buttonRightEdge > rightmostRightEdge)
+                        {
+                            rightmostRightEdge = buttonRightEdge;
+                            rightmostButton = button;
+                        }
+                    }
+                }
+                catch
+                {
+                    // Ignore visual transform errors and keep searching.
+                }
+
                 if (TitleBarButton.IsMouseOverNonClient(button, lParam))
                 {
                     isMouseOverButtons = true;
-                    break;
                 }
             }
 
@@ -720,15 +741,44 @@ public partial class TitleBar : System.Windows.Controls.Control, IThemeControl
                 return htResult;
             }
 
+            if (rightmostButton is not null
+                && Windows.Win32.PInvoke.GetCursorPos(out Windows.Win32.POINT cursorPoint))
+            {
+                Point cursorPosition = new(cursorPoint.X, cursorPoint.Y);
+
+                try
+                {
+                    Point rightmostTopLeft = rightmostButton.PointToScreen(new Point(0, 0));
+                    double rightEdge = rightmostTopLeft.X + rightmostButton.RenderSize.Width;
+                    double leftEdge = rightEdge - 1;
+                    double bottomEdge = rightmostTopLeft.Y + rightmostButton.RenderSize.Height;
+
+                    if (
+                        cursorPosition.X >= leftEdge
+                        && cursorPosition.X <= rightEdge
+                        && cursorPosition.Y >= rightmostTopLeft.Y
+                        && cursorPosition.Y <= bottomEdge
+                    )
+                    {
+                        handled = true;
+                        return (IntPtr)PInvoke.HTRIGHT;
+                    }
+                }
+                catch
+                {
+                    // Ignore transform errors and fall back to default hit testing.
+                }
+            }
+
             if (isMouseOverButtons)
             {
                 htResult = (IntPtr)PInvoke.HTNOWHERE;
             }
         }
-        // For WM_NCLBUTTONDOWN, also skip button hit testing if within top-left or top-right corner resize area
-        // This ensures resize handling works correctly
         else if (message == PInvoke.WM_NCLBUTTONDOWN)
         {
+            // For WM_NCLBUTTONDOWN, also skip button hit testing if within top-left or top-right corner resize area
+            // This ensures resize handling works correctly
             foreach (TitleBarButton button in _buttons)
             {
                 if (button is null)
@@ -745,9 +795,9 @@ public partial class TitleBar : System.Windows.Controls.Control, IThemeControl
 
             htResult = GetWindowBorderHitTestResult(hwnd, lParam, false);
 
-            if (htResult == (IntPtr)PInvoke.HTTOPLEFT || htResult == (IntPtr)PInvoke.HTTOPRIGHT)
+            if (htResult != (IntPtr)PInvoke.HTNOWHERE)
             {
-                // If within top-left or top-right corner resize area, skip button hit testing
+                // If within resize area, skip button hit testing
                 // and let Windows handle the default resize processing
                 handled = false;
                 return IntPtr.Zero;

@@ -739,7 +739,8 @@ public partial class TitleBar : System.Windows.Controls.Control, IThemeControl
                 return htResult;
             }
 
-            if (rightmostButton is not null
+            if (_currentWindow?.ResizeMode is ResizeMode.CanResize or ResizeMode.CanResizeWithGrip
+                && rightmostButton is not null
                 && Windows.Win32.PInvoke.GetCursorPos(out System.Drawing.Point cursorPoint))
             {
                 Point cursorPosition = new(cursorPoint.X, cursorPoint.Y);

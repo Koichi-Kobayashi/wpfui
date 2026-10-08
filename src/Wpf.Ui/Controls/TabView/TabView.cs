@@ -409,7 +409,6 @@ public partial class TabView : System.Windows.Controls.TabControl
         EndDrag();
         if (
             !CanReorderTabs
-            || IsGroupingActive
             || GetMutableCollection() == null
             || e.OriginalSource is not DependencyObject source
             || ItemsControl.ContainerFromElement(this, source) is not TabItem tab
@@ -446,7 +445,7 @@ public partial class TabView : System.Windows.Controls.TabControl
             return;
         }
 
-        if (!CanReorderTabs || IsGroupingActive || e.LeftButton != MouseButtonState.Pressed)
+        if (!CanReorderTabs || e.LeftButton != MouseButtonState.Pressed)
         {
             EndDrag();
             return;
@@ -493,8 +492,28 @@ public partial class TabView : System.Windows.Controls.TabControl
     protected override void OnDragOver(DragEventArgs e)
     {
         base.OnDragOver(e);
-        if (e.Data.GetData(typeof(TabDragData)) is TabDragData data && data.Owner == this)
+        if (e.Data.GetData(typeof(TabDragData)) is TabDragData data)
         {
+            if (RejectForeignGroupDrag(data, e))
+            {
+                return;
+            }
+
+            if (data.Owner != this)
+            {
+                return;
+            }
+
+            if (IsGroupingActive)
+            {
+                GroupDropTarget? destination = GetGroupDropTarget(e, data);
+                bool allowed = _isDragging && CanApplyGroupDrop(data, destination);
+                e.Effects = allowed ? DragDropEffects.Move : DragDropEffects.None;
+                ShowDropIndicator(allowed ? destination : null);
+                e.Handled = true;
+                return;
+            }
+
             e.Effects =
                 _isDragging
                 && !IsGroupingActive
@@ -511,7 +530,12 @@ public partial class TabView : System.Windows.Controls.TabControl
     protected override void OnDrop(DragEventArgs e)
     {
         base.OnDrop(e);
-        if (e.Data.GetData(typeof(TabDragData)) is not TabDragData data || data.Owner != this)
+        if (e.Data.GetData(typeof(TabDragData)) is not TabDragData data)
+        {
+            return;
+        }
+
+        if (RejectForeignGroupDrag(data, e) || data.Owner != this)
         {
             return;
         }
@@ -519,9 +543,20 @@ public partial class TabView : System.Windows.Controls.TabControl
         e.Handled = true;
         try
         {
-            if (!_isDragging || IsGroupingActive)
+            if (!_isDragging)
             {
                 e.Effects = DragDropEffects.None;
+                return;
+            }
+
+            if (IsGroupingActive)
+            {
+                e.Effects = DragDropEffects.None;
+                if (ApplyGroupDrop(data, GetGroupDropTarget(e, data)))
+                {
+                    e.Effects = DragDropEffects.Move;
+                }
+
                 return;
             }
 
@@ -553,6 +588,7 @@ public partial class TabView : System.Windows.Controls.TabControl
 
     private void EndDrag()
     {
+        ShowDropIndicator(null);
         _draggedTab = null;
         _isDragging = false;
     }
@@ -578,5 +614,10 @@ public partial class TabView : System.Windows.Controls.TabControl
         public TabView Owner { get; } = owner;
 
         public object Item { get; } = item;
+
+        public string? GroupId { get; } =
+            (
+                owner.ItemContainerGenerator.ContainerFromIndex(owner.GetItemIndex(item)) as TabViewItem
+            )?.GroupId;
     }
 }

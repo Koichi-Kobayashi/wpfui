@@ -49,12 +49,16 @@ public partial class TabView
     {
         _groupPanel = GetTemplateChild("HeaderPanel") as TabViewPanel;
         _groupHeaderLayer = GetTemplateChild("PART_GroupHeaders") as Canvas;
+        _dropOverlay = GetTemplateChild("PART_DropOverlay") as Canvas;
         InvalidateGroupLayout();
     }
 
     private void DetachGroupTemplate()
     {
         ClearGroupHeaders();
+        _dropOverlay?.Children.Clear();
+        _dropOverlay = null;
+        _dropIndicator = null;
         _groupPanel = null;
         _groupHeaderLayer = null;
         foreach (TabViewItem container in _containers)
@@ -113,7 +117,11 @@ public partial class TabView
         InvalidateGroupLayout();
     }
 
-    private void OnGroupChanged(object? sender, EventArgs e) => InvalidateGroupLayout();
+    private void OnGroupChanged(object? sender, EventArgs e)
+    {
+        EndDrag();
+        InvalidateGroupLayout();
+    }
 
     internal void InvalidateGroupLayout()
     {
@@ -204,6 +212,16 @@ public partial class TabView
 
         _groupPanel?.InvalidateMeasure();
         _groupHeaderLayer?.InvalidateMeasure();
+    }
+
+    internal void OnGroupMembershipChanged()
+    {
+        if (!_isUpdating)
+        {
+            EndDrag();
+        }
+
+        InvalidateGroupLayout();
     }
 
     private bool TryGetGroup(UIElement item, out TabGroup? group)
@@ -318,6 +336,11 @@ public partial class TabView
     /// <inheritdoc />
     protected override void OnItemsChanged(NotifyCollectionChangedEventArgs e)
     {
+        if (!_isUpdating)
+        {
+            EndDrag();
+        }
+
         base.OnItemsChanged(e);
         InvalidateGroupLayout();
     }

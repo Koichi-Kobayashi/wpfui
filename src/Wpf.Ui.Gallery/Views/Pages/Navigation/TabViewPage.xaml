@@ -50,7 +50,7 @@
             HeaderText="Tab groups proof of concept (MVVM)."
             XamlCode="&lt;ui:TabView ItemsSource=&quot;{Binding GroupedDocuments}&quot; TabGroups=&quot;{Binding Groups}&quot; /&gt;">
             <StackPanel>
-                <TextBlock TextWrapping="Wrap" Text="Click a colored group header to collapse it. The selected document stays open. Dragging grouped tabs is disabled in this proof of concept." />
+                <TextBlock TextWrapping="Wrap" Text="Drag to either side of a tab to reorder or change its group. Drop on a colored group header to append, even when collapsed. Drop on Home or Notes to ungroup. The insertion line or header outline indicates an allowed drop; Esc cancels. Collapse a group to keep its selected document open." />
                 <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
                     <CheckBox Content="Development expanded" IsChecked="{Binding Groups[0].IsExpanded, Mode=TwoWay}" />
                     <CheckBox Margin="16,0,0,0" Content="Reference expanded" IsChecked="{Binding Groups[1].IsExpanded, Mode=TwoWay}" />
@@ -66,7 +66,32 @@
                         <Style TargetType="ui:TabViewItem" BasedOn="{StaticResource {x:Type ui:TabViewItem}}">
                             <Setter Property="Header" Value="{Binding Header}" />
                             <Setter Property="IsClosable" Value="{Binding IsClosable}" />
-                            <Setter Property="GroupId" Value="{Binding GroupId}" />
+                            <Setter Property="GroupId" Value="{Binding GroupId, Mode=TwoWay}" />
+                            <Setter Property="ContentTemplate">
+                                <Setter.Value>
+                                    <DataTemplate>
+                                        <TextBlock Margin="12" Text="{Binding Content}" />
+                                    </DataTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </Style>
+                    </ui:TabView.ItemContainerStyle>
+                </ui:TabView>
+            </StackPanel>
+        </controls:ControlExample>
+        <controls:ControlExample
+            Margin="0,24,0,0"
+            HeaderText="Tab groups with read-only membership."
+            XamlCode="&lt;Setter Property=&quot;GroupId&quot; Value=&quot;{Binding GroupId, Mode=OneWay}&quot; /&gt;">
+            <StackPanel>
+                <TextBlock TextWrapping="Wrap" Text="These same models use OneWay membership bindings here. Reordering within a group is allowed; moving between groups is rejected with the no-drop cursor. Try the writable group sample above to move tabs between groups." />
+                <ui:TabView Margin="0,8,0,0" CanAddTabs="False"
+                            ItemsSource="{Binding GroupedDocuments}" TabGroups="{Binding Groups}">
+                    <ui:TabView.ItemContainerStyle>
+                        <Style TargetType="ui:TabViewItem" BasedOn="{StaticResource {x:Type ui:TabViewItem}}">
+                            <Setter Property="Header" Value="{Binding Header}" />
+                            <Setter Property="IsClosable" Value="False" />
+                            <Setter Property="GroupId" Value="{Binding GroupId, Mode=OneWay}" />
                             <Setter Property="ContentTemplate">
                                 <Setter.Value>
                                     <DataTemplate>

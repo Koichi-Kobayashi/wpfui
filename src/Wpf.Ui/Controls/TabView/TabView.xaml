@@ -44,6 +44,11 @@
                                         x:Name="PART_GroupHeaders"
                                         Panel.ZIndex="2"
                                         ClipToBounds="True" />
+                                    <Canvas
+                                        x:Name="PART_DropOverlay"
+                                        Panel.ZIndex="3"
+                                        ClipToBounds="True"
+                                        IsHitTestVisible="False" />
                                 </Grid>
                             </ScrollViewer>
                             <Button

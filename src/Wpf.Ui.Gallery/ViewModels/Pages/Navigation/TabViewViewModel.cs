@@ -37,21 +37,21 @@ public partial class TabViewViewModel : ViewModel
         },
     ];
 
-    public ObservableCollection<TabDocument> GroupedDocuments { get; } =
+    public ObservableCollection<GroupedTabDocument> GroupedDocuments { get; } =
     [
         new("Home", "An ungrouped, non-closable tab.", false),
         new(
             "Main.xaml",
             "Collapse Development: the selected document remains visible.",
-            GroupId: "development"
+            groupId: "development"
         ),
-        new("ViewModel.cs", "Another development document.", GroupId: "development"),
+        new("ViewModel.cs", "Another development document.", groupId: "development"),
         new("Notes", "An ungrouped tab between groups."),
-        new("README.md", "A reference document.", GroupId: "reference"),
+        new("README.md", "A reference document.", groupId: "reference"),
     ];
 
     [ObservableProperty]
-    private TabDocument? _selectedGroupedDocument;
+    private GroupedTabDocument? _selectedGroupedDocument;
 
     public TabViewViewModel()
     {
@@ -65,13 +65,13 @@ public partial class TabViewViewModel : ViewModel
         return new TabDocument($"Document {number}", $"Content of document {number}.");
     }
 
-    public TabDocument CreateGroupedDocument()
+    public GroupedTabDocument CreateGroupedDocument()
     {
         int number = _nextTabNumber++;
-        return new TabDocument(
+        return new GroupedTabDocument(
             $"Grouped document {number}",
             $"Content of grouped document {number}.",
-            GroupId: "development"
+            groupId: "development"
         );
     }
 }

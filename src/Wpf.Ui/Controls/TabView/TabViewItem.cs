@@ -46,7 +46,7 @@ public class TabViewItem : System.Windows.Controls.TabItem
     {
         if (System.Windows.Controls.ItemsControl.ItemsControlFromItemContainer(d) is TabView owner)
         {
-            owner.InvalidateGroupLayout();
+            owner.OnGroupMembershipChanged();
         }
     }
 

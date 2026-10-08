@@ -353,7 +353,7 @@ public partial class TabViewTests
         });
 
     [Fact]
-    public void Groups_RejectReorderingAndResumeItAfterDisablingGroups() =>
+    public void Groups_RejectUnwritableMembershipAndResumeReorderingAfterDisablingGroups() =>
         RunSta(() =>
         {
             TabView view = CreateView();
@@ -365,6 +365,11 @@ public partial class TabViewTests
             Reorder(view, 0, 1);
             Assert.Same(first, view.Items[0]);
             TabViewItem firstTab = Assert.IsType<TabViewItem>(first);
+            BindingOperations.SetBinding(
+                firstTab,
+                TabViewItem.GroupIdProperty,
+                new Binding("GroupId") { Source = new { GroupId = "dev" }, Mode = BindingMode.OneWay }
+            );
             SetDragState(view, firstTab);
             System.Windows.DragEventArgs drop = CreateDrop(
                 view,

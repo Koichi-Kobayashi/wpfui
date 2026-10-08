@@ -19,7 +19,8 @@ namespace Wpf.Ui.Controls;
 /// Handlers that perform their own collection updates must set Cancel to true.
 /// </summary>
 [TemplatePart(Name = "PART_AddButton", Type = typeof(System.Windows.Controls.Button))]
-public class TabView : System.Windows.Controls.TabControl
+[TemplatePart(Name = "PART_GroupHeaders", Type = typeof(System.Windows.Controls.Canvas))]
+public partial class TabView : System.Windows.Controls.TabControl
 {
     private readonly HashSet<TabViewItem> _containers = new();
     private System.Windows.Controls.Button? _addButton;
@@ -96,6 +97,7 @@ public class TabView : System.Windows.Controls.TabControl
         {
             _containers.Add(container);
             AttachContainer(container);
+            InvalidateGroupLayout();
         }
     }
 
@@ -106,6 +108,8 @@ public class TabView : System.Windows.Controls.TabControl
         {
             container.CloseRequested -= OnTabCloseRequested;
             _containers.Remove(container);
+            container.SetGroupCollapsed(false);
+            InvalidateGroupLayout();
         }
 
         if (element == _draggedTab)
@@ -121,6 +125,7 @@ public class TabView : System.Windows.Controls.TabControl
     {
         EndDrag();
         base.OnItemsSourceChanged(oldValue, newValue);
+        InvalidateGroupLayout();
     }
 
     /// <inheritdoc />
@@ -128,9 +133,11 @@ public class TabView : System.Windows.Controls.TabControl
     {
         EndDrag();
         DetachAddButton();
+        DetachGroupTemplate();
         base.OnApplyTemplate();
         _addButton = GetTemplateChild("PART_AddButton") as System.Windows.Controls.Button;
         AttachAddButton();
+        AttachGroupTemplate();
     }
 
     private void AttachAddButton()
@@ -158,6 +165,7 @@ public class TabView : System.Windows.Controls.TabControl
 
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
+        ResumeGroups();
         AttachAddButton();
         foreach (TabViewItem container in _containers)
         {
@@ -168,6 +176,7 @@ public class TabView : System.Windows.Controls.TabControl
     private void OnUnloaded(object sender, RoutedEventArgs e)
     {
         EndDrag();
+        SuspendGroups();
         DetachAddButton();
         foreach (TabViewItem container in _containers)
         {
@@ -360,6 +369,7 @@ public class TabView : System.Windows.Controls.TabControl
         IList? collection = GetMutableCollection();
         if (
             _isUpdating
+            || IsGroupingActive
             || !CanReorderTabs
             || collection == null
             || oldIndex < 0
@@ -399,6 +409,7 @@ public class TabView : System.Windows.Controls.TabControl
         EndDrag();
         if (
             !CanReorderTabs
+            || IsGroupingActive
             || GetMutableCollection() == null
             || e.OriginalSource is not DependencyObject source
             || ItemsControl.ContainerFromElement(this, source) is not TabItem tab
@@ -435,7 +446,7 @@ public class TabView : System.Windows.Controls.TabControl
             return;
         }
 
-        if (!CanReorderTabs || e.LeftButton != MouseButtonState.Pressed)
+        if (!CanReorderTabs || IsGroupingActive || e.LeftButton != MouseButtonState.Pressed)
         {
             EndDrag();
             return;
@@ -485,7 +496,11 @@ public class TabView : System.Windows.Controls.TabControl
         if (e.Data.GetData(typeof(TabDragData)) is TabDragData data && data.Owner == this)
         {
             e.Effects =
-                _isDragging && CanReorderTabs && GetMutableCollection() != null && GetDropTarget(e) != null
+                _isDragging
+                && !IsGroupingActive
+                && CanReorderTabs
+                && GetMutableCollection() != null
+                && GetDropTarget(e) != null
                     ? DragDropEffects.Move
                     : DragDropEffects.None;
             e.Handled = true;
@@ -504,7 +519,7 @@ public class TabView : System.Windows.Controls.TabControl
         e.Handled = true;
         try
         {
-            if (!_isDragging)
+            if (!_isDragging || IsGroupingActive)
             {
                 e.Effects = DragDropEffects.None;
                 return;

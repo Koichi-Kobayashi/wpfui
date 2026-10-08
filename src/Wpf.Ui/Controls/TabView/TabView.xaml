@@ -26,14 +26,26 @@
                                 <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
-                            <TabPanel
-                                x:Name="HeaderPanel"
+                            <ScrollViewer
+                                x:Name="PART_HeaderScroller"
                                 Grid.Column="0"
-                                Margin="0"
-                                Panel.ZIndex="1"
-                                Background="Transparent"
-                                IsItemsHost="True"
-                                KeyboardNavigation.TabIndex="1" />
+                                Focusable="False"
+                                HorizontalScrollBarVisibility="Auto"
+                                VerticalScrollBarVisibility="Disabled">
+                                <Grid>
+                                    <controls:TabViewPanel
+                                        x:Name="HeaderPanel"
+                                        Margin="0"
+                                        Panel.ZIndex="1"
+                                        Background="Transparent"
+                                        IsItemsHost="True"
+                                        KeyboardNavigation.TabIndex="1" />
+                                    <Canvas
+                                        x:Name="PART_GroupHeaders"
+                                        Panel.ZIndex="2"
+                                        ClipToBounds="True" />
+                                </Grid>
+                            </ScrollViewer>
                             <Button
                                 x:Name="PART_AddButton"
                                 Grid.Column="1"
@@ -103,6 +115,9 @@
                         </VisualStateManager.VisualStateGroups>
                     </Grid>
                     <ControlTemplate.Triggers>
+                        <Trigger Property="TabGroups" Value="{x:Null}">
+                            <Setter TargetName="PART_HeaderScroller" Property="HorizontalScrollBarVisibility" Value="Disabled" />
+                        </Trigger>
                         <Trigger Property="CanAddTabs" Value="True">
                             <Setter TargetName="PART_AddButton" Property="Visibility" Value="Visible" />
                         </Trigger>

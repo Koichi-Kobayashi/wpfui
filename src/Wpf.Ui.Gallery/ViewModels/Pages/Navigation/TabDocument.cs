@@ -5,4 +5,9 @@
 
 namespace Wpf.Ui.Gallery.ViewModels.Pages.Navigation;
 
-public sealed record TabDocument(string Header, string Content, bool IsClosable = true);
+public sealed record TabDocument(
+    string Header,
+    string Content,
+    bool IsClosable = true,
+    string? GroupId = null
+);

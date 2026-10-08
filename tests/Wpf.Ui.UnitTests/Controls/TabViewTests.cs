@@ -20,7 +20,7 @@ using Button = System.Windows.Controls.Button;
 
 namespace Wpf.Ui.UnitTests.Controls;
 
-public class TabViewTests
+public partial class TabViewTests
 {
     [Fact]
     public void Drop_UsesModelIdentityAndRejectsOtherViews() =>

@@ -47,4 +47,9 @@ public partial class TabViewPage : INavigableView<TabViewViewModel>
         // Business rules use the model, not the generated TabViewItem.
         e.Cancel = e.Item is TabDocument { IsClosable: false };
     }
+
+    private void OnGroupedTabAdding(object sender, TabViewItemAddingEventArgs e)
+    {
+        e.Item = ViewModel.CreateGroupedDocument();
+    }
 }

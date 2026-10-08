@@ -4,6 +4,7 @@
 // All Rights Reserved.
 
 using System.Collections.ObjectModel;
+using Wpf.Ui.Controls;
 
 namespace Wpf.Ui.Gallery.ViewModels.Pages.Navigation;
 
@@ -20,14 +21,57 @@ public partial class TabViewViewModel : ViewModel
     [ObservableProperty]
     private TabDocument? _selectedDocument;
 
+    public ObservableCollection<TabGroup> Groups { get; } =
+    [
+        new()
+        {
+            Id = "development",
+            Header = "Development",
+            Color = System.Windows.Media.Colors.DodgerBlue,
+        },
+        new()
+        {
+            Id = "reference",
+            Header = "Reference",
+            Color = System.Windows.Media.Colors.MediumSeaGreen,
+        },
+    ];
+
+    public ObservableCollection<TabDocument> GroupedDocuments { get; } =
+    [
+        new("Home", "An ungrouped, non-closable tab.", false),
+        new(
+            "Main.xaml",
+            "Collapse Development: the selected document remains visible.",
+            GroupId: "development"
+        ),
+        new("ViewModel.cs", "Another development document.", GroupId: "development"),
+        new("Notes", "An ungrouped tab between groups."),
+        new("README.md", "A reference document.", GroupId: "reference"),
+    ];
+
+    [ObservableProperty]
+    private TabDocument? _selectedGroupedDocument;
+
     public TabViewViewModel()
     {
         SelectedDocument = Documents[0];
+        SelectedGroupedDocument = GroupedDocuments[1];
     }
 
     public TabDocument CreateDocument()
     {
         int number = _nextTabNumber++;
         return new TabDocument($"Document {number}", $"Content of document {number}.");
+    }
+
+    public TabDocument CreateGroupedDocument()
+    {
+        int number = _nextTabNumber++;
+        return new TabDocument(
+            $"Grouped document {number}",
+            $"Content of grouped document {number}.",
+            GroupId: "development"
+        );
     }
 }

@@ -45,5 +45,39 @@
                 </ui:TabView.ItemContainerStyle>
             </ui:TabView>
         </controls:ControlExample>
+        <controls:ControlExample
+            Margin="0,24,0,0"
+            HeaderText="Tab groups proof of concept (MVVM)."
+            XamlCode="&lt;ui:TabView ItemsSource=&quot;{Binding GroupedDocuments}&quot; TabGroups=&quot;{Binding Groups}&quot; /&gt;">
+            <StackPanel>
+                <TextBlock TextWrapping="Wrap" Text="Click a colored group header to collapse it. The selected document stays open. Dragging grouped tabs is disabled in this proof of concept." />
+                <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                    <CheckBox Content="Development expanded" IsChecked="{Binding Groups[0].IsExpanded, Mode=TwoWay}" />
+                    <CheckBox Margin="16,0,0,0" Content="Reference expanded" IsChecked="{Binding Groups[1].IsExpanded, Mode=TwoWay}" />
+                </StackPanel>
+                <ui:TabView
+                    Margin="0,8,0,0"
+                    ItemsSource="{Binding GroupedDocuments}"
+                    SelectedItem="{Binding SelectedGroupedDocument, Mode=TwoWay}"
+                    TabGroups="{Binding Groups}"
+                    TabAdding="OnGroupedTabAdding"
+                    TabClosing="OnModelTabClosing">
+                    <ui:TabView.ItemContainerStyle>
+                        <Style TargetType="ui:TabViewItem" BasedOn="{StaticResource {x:Type ui:TabViewItem}}">
+                            <Setter Property="Header" Value="{Binding Header}" />
+                            <Setter Property="IsClosable" Value="{Binding IsClosable}" />
+                            <Setter Property="GroupId" Value="{Binding GroupId}" />
+                            <Setter Property="ContentTemplate">
+                                <Setter.Value>
+                                    <DataTemplate>
+                                        <TextBlock Margin="12" Text="{Binding Content}" />
+                                    </DataTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </Style>
+                    </ui:TabView.ItemContainerStyle>
+                </ui:TabView>
+            </StackPanel>
+        </controls:ControlExample>
     </StackPanel>
 </Page>

@@ -15,6 +15,40 @@ namespace Wpf.Ui.Controls;
 public class TabViewItem : System.Windows.Controls.TabItem
 {
     private System.Windows.Controls.Button? _closeButton;
+    private bool _isGroupCollapsed;
+
+    /// <summary>Identifies the provisional <see cref="GroupId"/> dependency property.</summary>
+    public static readonly DependencyProperty GroupIdProperty = DependencyProperty.Register(
+        nameof(GroupId),
+        typeof(string),
+        typeof(TabViewItem),
+        new PropertyMetadata(null, OnGroupIdChanged)
+    );
+
+    /// <summary>Gets or sets the provisional group identifier. Null denotes an ungrouped tab.</summary>
+    public string? GroupId
+    {
+        get => (string?)GetValue(GroupIdProperty);
+        set => SetValue(GroupIdProperty, value);
+    }
+
+    internal void SetGroupCollapsed(bool collapsed)
+    {
+        if (_isGroupCollapsed == collapsed)
+        {
+            return;
+        }
+        _isGroupCollapsed = collapsed;
+        CoerceValue(VisibilityProperty);
+    }
+
+    private static void OnGroupIdChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+    {
+        if (System.Windows.Controls.ItemsControl.ItemsControlFromItemContainer(d) is TabView owner)
+        {
+            owner.InvalidateGroupLayout();
+        }
+    }
 
     /// <summary>Identifies the <see cref="IsClosable"/> dependency property.</summary>
     public static readonly DependencyProperty IsClosableProperty = DependencyProperty.Register(
@@ -51,6 +85,14 @@ public class TabViewItem : System.Windows.Controls.TabItem
 
     static TabViewItem()
     {
+        VisibilityProperty.OverrideMetadata(
+            typeof(TabViewItem),
+            new FrameworkPropertyMetadata(
+                Visibility.Visible,
+                null,
+                (d, value) => ((TabViewItem)d)._isGroupCollapsed ? Visibility.Collapsed : value
+            )
+        );
         DefaultStyleKeyProperty.OverrideMetadata(
             typeof(TabViewItem),
             new FrameworkPropertyMetadata(typeof(TabViewItem))

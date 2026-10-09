@@ -50,6 +50,6 @@ public partial class TabViewPage : INavigableView<TabViewViewModel>
 
     private void OnGroupedTabAdding(object sender, TabViewItemAddingEventArgs e)
     {
-        e.Item = ViewModel.CreateGroupedDocument();
+        e.Item = ViewModel.CreateGroupedDocument(e.TargetGroupId);
     }
 }

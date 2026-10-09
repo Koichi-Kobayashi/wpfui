@@ -61,7 +61,13 @@ public partial class TabView
                 ?.GetType()
                 .GetProperty(expression.ResolvedSourcePropertyName ?? string.Empty);
             if (
-                binding.Mode != BindingMode.TwoWay
+                (
+                    binding.Mode != BindingMode.TwoWay
+                    && !(
+                        binding.Mode == BindingMode.Default
+                        && dp.GetMetadata(target) is FrameworkPropertyMetadata { BindsTwoWayByDefault: true }
+                    )
+                )
                 || binding.IsAsync
                 || binding.Delay != 0
                 || binding.Converter != null

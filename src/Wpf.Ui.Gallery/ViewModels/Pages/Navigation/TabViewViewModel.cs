@@ -71,13 +71,13 @@ public partial class TabViewViewModel : ViewModel
         return new TabDocument($"Document {number}", $"Content of document {number}.");
     }
 
-    public GroupedTabDocument CreateGroupedDocument()
+    public GroupedTabDocument CreateGroupedDocument(string? groupId = null)
     {
         int number = _nextTabNumber++;
         return new GroupedTabDocument(
             $"Grouped document {number}",
             $"Content of grouped document {number}.",
-            groupId: "development"
+            groupId: groupId
         );
     }
 

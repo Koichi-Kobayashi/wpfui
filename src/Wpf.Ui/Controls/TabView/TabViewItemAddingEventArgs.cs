@@ -11,6 +11,22 @@ namespace Wpf.Ui.Controls;
 /// </summary>
 public class TabViewItemAddingEventArgs : EventArgs
 {
+    /// <summary>Initializes a new instance of the <see cref="TabViewItemAddingEventArgs"/> class.</summary>
+    public TabViewItemAddingEventArgs() { }
+
+    internal TabViewItemAddingEventArgs(string? targetGroupId)
+    {
+        TargetGroupId = targetGroupId;
+    }
+
+    /// <summary>
+    /// Gets the target group ID captured when the add request begins. A group menu supplies
+    /// its group's ID, and the grouped add button supplies the selected tab's group ID.
+    /// Ungrouped tabs, no selection, and <see cref="TabView.AddTab"/> requests supply null.
+    /// This value remains unchanged if group definitions change during the event.
+    /// </summary>
+    public string? TargetGroupId { get; }
+
     /// <summary>
     /// Gets or sets the tab item to be added. With unbound Items, a new TabViewItem is
     /// created when neither this property nor Item is supplied.

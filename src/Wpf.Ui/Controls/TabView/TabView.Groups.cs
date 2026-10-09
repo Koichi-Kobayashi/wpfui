@@ -5,7 +5,6 @@
 
 using System.Collections.Specialized;
 using System.Windows.Controls;
-using System.Windows.Data;
 using System.Windows.Input;
 using Button = System.Windows.Controls.Button;
 
@@ -60,6 +59,7 @@ public partial class TabView
 
     private void DetachGroupTemplate()
     {
+        CancelGroupFocusRecovery();
         CloseGroupManagementUI();
         DetachHeaderStrip();
         ClearGroupBackgrounds();
@@ -112,6 +112,7 @@ public partial class TabView
 
     private void SuspendGroups()
     {
+        CancelGroupFocusRecovery();
         CloseGroupManagementUI();
         DetachHeaderStrip();
         ClearGroupBackgrounds();
@@ -198,7 +199,7 @@ public partial class TabView
             {
                 if (!_groupHeaders.TryGetValue(group, out Button? button))
                 {
-                    button = new Button
+                    button = new TabViewGroupHeader(this, group)
                     {
                         Tag = group,
                         MinHeight = 36,
@@ -206,6 +207,8 @@ public partial class TabView
                         Margin = new Thickness(2, 0, 2, 0),
                         Background = Brushes.Transparent,
                     };
+                    // The internal header subtype must retain the existing Fluent button style.
+                    button.SetResourceReference(StyleProperty, typeof(Button));
                     button.Click += OnGroupHeaderClick;
                     _groupHeaders.Add(group, button);
                     _groupHeaderLayer!.Children.Add(button);
@@ -246,6 +249,7 @@ public partial class TabView
         UpdateGroupBackgroundAppearance(UseHighContrastGroupBackground);
         UpdateHeaderScrollButtons();
         ValidateGroupEditor();
+        UpdateGroupKeyboardAndAutomation();
     }
 
     internal void OnGroupMembershipChanged()
@@ -345,10 +349,8 @@ public partial class TabView
         // Frozen definitions cannot expand, but their tabs can still be moved as a group.
         button.SetCurrentValue(IsEnabledProperty, true);
         button.SetCurrentValue(ToolTipProperty, group.IsExpanded ? "Collapse group" : "Expand group");
-        System.Windows.Automation.AutomationProperties.SetName(
-            button,
-            $"{group.Header}, {(group.IsExpanded ? "expanded" : "collapsed")}{(selected ? ", selected tab" : string.Empty)}"
-        );
+        System.Windows.Automation.AutomationProperties.SetName(button, GroupLabel(group));
+        (button as TabViewGroupHeader)?.RefreshAutomationState();
     }
 
     private void OnGroupHeaderClick(object sender, RoutedEventArgs e)
@@ -361,8 +363,7 @@ public partial class TabView
 
         if (sender is Button { Tag: TabGroup group } && !group.IsFrozen)
         {
-            group.SetCurrentValue(TabGroup.IsExpandedProperty, !group.IsExpanded);
-            BindingOperations.GetBindingExpression(group, TabGroup.IsExpandedProperty)?.UpdateSource();
+            SetGroupExpanded(group, !group.IsExpanded);
         }
     }
 
@@ -435,31 +436,8 @@ public partial class TabView
     /// <inheritdoc />
     protected override void OnKeyDown(KeyEventArgs e)
     {
-        // Items order can differ from the projection. Do not let base navigation select invisible headers.
-        if (
-            IsGroupingActive
-            && (
-                e.Key == Key.Home
-                || e.Key == Key.End
-                || (e.Key == Key.Tab && (Keyboard.Modifiers & ModifierKeys.Control) != 0)
-            )
-        )
+        if (!e.Handled && HandleGroupTabSwitch(e.Key, Keyboard.Modifiers))
         {
-            List<TabItem> visible = GetGroupLayoutEntries(_groupPanel!.Children.Cast<UIElement>().ToList())
-                .OfType<TabItem>()
-                .Where(tab => tab.Visibility == Visibility.Visible && tab.IsEnabled)
-                .ToList();
-            if (visible.Count > 0)
-            {
-                int current = visible.FindIndex(tab => tab.IsSelected);
-                int index =
-                    e.Key == Key.Home ? 0
-                    : e.Key == Key.End ? visible.Count - 1
-                    : (current + ((Keyboard.Modifiers & ModifierKeys.Shift) != 0 ? -1 : 1) + visible.Count)
-                        % visible.Count;
-                visible[index].Focus();
-            }
-
             e.Handled = true;
             return;
         }

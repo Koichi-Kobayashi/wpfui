@@ -197,6 +197,12 @@ public partial class TabView
                     }
                 }
             );
+            AddGroupMenuItem(
+                menu.Items,
+                "Add new tab to this group",
+                CanAddGroupTab(group),
+                () => AddTabToGroup(group)
+            );
         }
 
         return menu;

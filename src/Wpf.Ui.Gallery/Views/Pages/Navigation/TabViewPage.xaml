@@ -62,13 +62,15 @@
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
                 <TextBlock Margin="0,8,0,0" TextWrapping="Wrap"
-                           Text="Right-click a group header to edit its name and color or ungroup its tabs. Right-click a tab to create a group, change its group, or remove its membership. Enter applies the editor; Escape cancels. Moving the last tab out hides the old header but retains its definition. Disabled commands indicate read-only data or bindings." />
+                           Text="Right-click a group header to edit its name and color, ungroup its tabs, or add a new tab to that group. Try selecting a Development tab, then right-click Reference and choose Add new tab to this group: the new tab appears at the end of Reference, even when collapsed. The + button still adds after the selected tab. Right-click a tab to create a group, change its group, or remove its membership. Enter applies the editor; Escape cancels. Moving the last tab out hides the old header but retains its definition. Disabled commands indicate read-only data or bindings." />
                 <WrapPanel Margin="0,8,0,0">
                     <Button Content="Add a long tab row" Command="{Binding AddLongTabRowCommand}" />
                     <Button Margin="8,0,0,0" Content="Remove extra tabs" Command="{Binding RemoveExtraGroupedTabsCommand}" />
                 </WrapPanel>
                 <TextBlock Margin="0,8,0,0" TextWrapping="Wrap"
-                           Text="Colored regions distinguish Development and Reference from ungrouped tabs. Add long tabs to show the scroll arrows; use the mouse wheel over the strip. Remove extras or collapse both groups to hide the arrows. Use the Gallery theme selector to compare Light and Dark." />
+                           Text="Colored regions distinguish Development and Reference from ungrouped tabs. The + button adds after the selected tab and uses its group; Home and Notes create ungrouped tabs. A collapsed destination expands after the new tab is added. Add long tabs to show the scroll arrows; use the mouse wheel over the strip. Remove extras or collapse both groups to hide the arrows. Use the Gallery theme selector to compare Light and Dark." />
+                <TextBlock Margin="0,8,0,8" TextWrapping="Wrap"
+                           Text="Keyboard: Tab / Shift+Tab access group headers. Left / Right move through visible tabs and headers; Home / End reach the strip ends. Enter / Space expand or collapse a focused group without changing its selected document. Ctrl+Tab / Ctrl+Shift+Tab select the next / previous visible tab. Offscreen headers scroll into view. In the editor, Enter applies and Escape cancels. Narrator: press Windows+Ctrl+Enter, focus a group header, and check its name and expanded / collapsed state; collapsed groups keep the selected document open." />
                 <ui:TabView
                     Margin="0,8,0,0"
                     ItemsSource="{Binding GroupedDocuments}"

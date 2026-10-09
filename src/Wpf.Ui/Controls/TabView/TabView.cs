@@ -104,6 +104,7 @@ public partial class TabView : System.Windows.Controls.TabControl
     /// <inheritdoc />
     protected override void ClearContainerForItemOverride(DependencyObject element, object item)
     {
+        BeforeGroupContainerCleared(element);
         if (element is TabViewItem container)
         {
             container.CloseRequested -= OnTabCloseRequested;
@@ -198,7 +199,7 @@ public partial class TabView : System.Windows.Controls.TabControl
         e.Handled = true;
         if (CanAddTabs)
         {
-            AddTab();
+            AddTabCore(null, null, IsGroupingActive ? TabAddMode.AfterSelection : TabAddMode.Append);
         }
     }
 
@@ -206,7 +207,10 @@ public partial class TabView : System.Windows.Controls.TabControl
     /// Requests a new tab. With ItemsSource, supply a compatible Item or TabItem in TabAdding.
     /// Unsupported collections are left unchanged. Content and header apply to TabViewItem entries.
     /// </summary>
-    public void AddTab(object? content = null, string? header = null)
+    public void AddTab(object? content = null, string? header = null) =>
+        AddTabCore(content, header, TabAddMode.Append);
+
+    private void AddTabCore(object? content, string? header, TabAddMode mode, TabGroup? explicitGroup = null)
     {
         if (_isUpdating)
         {
@@ -218,9 +222,42 @@ public partial class TabView : System.Windows.Controls.TabControl
         {
             IEnumerable? source = ItemsSource;
             int count = Items.Count;
-            TabViewItemAddingEventArgs args = new();
+            object? selected = SelectedItem;
+            bool contextual = mode != TabAddMode.Append;
+            object[]? snapshot = contextual ? Items.Cast<object>().ToArray() : null;
+            TabGroup? group = explicitGroup;
+            if (
+                mode == TabAddMode.AfterSelection
+                && ItemContainerGenerator.ContainerFromItem(selected) is TabViewItem selectedTab
+            )
+            {
+                TryGetGroup(selectedTab, out group);
+            }
+
+            string? targetGroupId = group?.Id;
+            if (mode == TabAddMode.GroupEnd && !AddTargetIsValid(group, targetGroupId))
+            {
+                return;
+            }
+
+            int insertionIndex = contextual
+                ? ResolveAddIndex(mode, snapshot!, selected, targetGroupId)
+                : count;
+            TabViewItemAddingEventArgs args = new(targetGroupId);
             TabAdding?.Invoke(this, args);
-            if (args.Cancel || source != ItemsSource || count != Items.Count)
+            if (
+                args.Cancel
+                || source != ItemsSource
+                || count != Items.Count
+                || (
+                    contextual
+                    && (
+                        !MatchesItems(Items, snapshot!)
+                        || !AddTargetIsValid(group, targetGroupId)
+                        || (mode == TabAddMode.AfterSelection && !IsSameItem(selected, SelectedItem))
+                    )
+                )
+            )
             {
                 return;
             }
@@ -255,9 +292,24 @@ public partial class TabView : System.Windows.Controls.TabControl
                 }
             }
 
-            collection.Add(item);
-            RefreshCollection(collection);
-            SetCurrentValue(SelectedItemProperty, item);
+            if (contextual)
+            {
+                InsertRequestedTab(
+                    collection,
+                    item,
+                    SelectedItem,
+                    group,
+                    snapshot!,
+                    insertionIndex,
+                    targetGroupId
+                );
+            }
+            else
+            {
+                collection.Add(item);
+                RefreshCollection(collection);
+                SetCurrentValue(SelectedItemProperty, item);
+            }
         }
         finally
         {

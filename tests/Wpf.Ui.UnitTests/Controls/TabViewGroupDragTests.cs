@@ -185,6 +185,42 @@ public partial class TabViewTests
         });
 
     [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void GroupDrag_BorderAndHeaderMarginUseGeometryInsteadOfRoutedSource(bool crossGroup) =>
+        RunSta(() =>
+        {
+            ObservableCollection<GroupDocument> source = DragDocuments();
+            source.Add(new() { Header = "Second A", GroupId = "a" });
+            TabView view = CreateGroupDragView(source, BindingMode.OneWay);
+            TabGroup group = crossGroup ? view.TabGroups!.Last() : view.TabGroups!.First();
+            FrameworkElement header = GroupHeader(view, group);
+            Point[] points =
+            {
+                header.TranslatePoint(new Point(-header.Margin.Left / 2, header.ActualHeight / 2), view),
+                Container(view, crossGroup ? source[2] : source[3]).TranslatePoint(new Point(.1, .1), view),
+            };
+            foreach (Point point in points)
+            {
+                foreach (
+                    FrameworkElement routedSource in new FrameworkElement[] { header, GroupLayer(view), view }
+                )
+                {
+                    foreach (string handler in new[] { "OnDragEnter", "OnDragOver" })
+                    {
+                        DragEventArgs over = GroupDrop(view, source[0], routedSource, pointInView: point);
+                        Invoke(view, handler, over);
+                        Assert.Equal(crossGroup ? DragDropEffects.None : DragDropEffects.Move, over.Effects);
+                        Assert.True(over.Handled);
+                    }
+                }
+            }
+
+            Assert.Equal("a", source[0].GroupId);
+            Assert.Equal("First", source[0].Header);
+        });
+
+    [Theory]
     [InlineData("readonly")]
     [InlineData("sort")]
     [InlineData("filter")]
@@ -539,16 +575,19 @@ public partial class TabViewTests
         TabView view,
         object item,
         FrameworkElement target,
-        bool after = true
+        bool after = true,
+        Point? pointInView = null
     )
     {
         SetDragState(view, Container(view, item));
         Type payloadType = typeof(TabView).GetNestedType("TabDragData", BindingFlags.NonPublic)!;
         object payload = Activator.CreateInstance(payloadType, view, item)!;
-        Point point = target.TranslatePoint(
-            new Point(target.ActualWidth * (after ? .75 : .25), target.ActualHeight / 2),
-            view
-        );
+        Point point =
+            pointInView
+            ?? target.TranslatePoint(
+                new Point(target.ActualWidth * (after ? .75 : .25), target.ActualHeight / 2),
+                view
+            );
         DragEventArgs args = Assert.IsType<DragEventArgs>(
             Activator.CreateInstance(
                 typeof(DragEventArgs),

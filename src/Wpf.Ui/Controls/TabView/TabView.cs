@@ -506,11 +506,7 @@ public partial class TabView : System.Windows.Controls.TabControl
 
             if (IsGroupingActive)
             {
-                GroupDropTarget? destination = GetGroupDropTarget(e, data);
-                bool allowed = _isDragging && CanApplyGroupDrop(data, destination);
-                e.Effects = allowed ? DragDropEffects.Move : DragDropEffects.None;
-                ShowDropIndicator(allowed ? destination : null);
-                e.Handled = true;
+                UpdateGroupDragFeedback(data, e);
                 return;
             }
 

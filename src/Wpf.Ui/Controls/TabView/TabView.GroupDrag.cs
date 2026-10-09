@@ -41,50 +41,50 @@ public partial class TabView
 
     private GroupDropTarget? GetGroupDropTarget(DragEventArgs e, TabDragData data)
     {
-        DependencyObject? hit = e.OriginalSource as DependencyObject;
-        for (
-            DependencyObject? current = hit;
-            current != null && current != this;
-            current = GetDragParent(current)
-        )
+        if (_headerScroller != null)
         {
-            if (current is System.Windows.Controls.Button header)
+            Point viewport = e.GetPosition(_headerScroller);
+            if (
+                viewport.X < 0
+                || viewport.X >= _headerScroller.ActualWidth
+                || viewport.Y < 0
+                || viewport.Y >= _headerScroller.ActualHeight
+            )
             {
-                foreach (KeyValuePair<TabGroup, Button> pair in _groupHeaders)
-                {
-                    if (pair.Value == header && header.Visibility == Visibility.Visible)
-                    {
-                        object? last = null;
-                        for (int i = 0; i < Items.Count; i++)
-                        {
-                            if (
-                                !IsSameItem(Items[i], data.Item)
-                                && ItemContainerGenerator.ContainerFromIndex(i) is TabViewItem member
-                                && member.GroupId == pair.Key.Id
-                            )
-                            {
-                                last = Items[i];
-                            }
-                        }
+                return null;
+            }
+        }
 
-                        // A header appends to its group, including when its members are collapsed.
-                        return new(pair.Key.Id, last, true, true, header);
+        FrameworkElement? hit = _groupPanel?.GetDropElement(e.GetPosition(_groupPanel));
+        if (hit is System.Windows.Controls.Button header)
+        {
+            foreach (KeyValuePair<TabGroup, Button> pair in _groupHeaders)
+            {
+                if (pair.Value == header && header.Visibility == Visibility.Visible)
+                {
+                    object? last = null;
+                    for (int i = 0; i < Items.Count; i++)
+                    {
+                        if (
+                            !IsSameItem(Items[i], data.Item)
+                            && ItemContainerGenerator.ContainerFromIndex(i) is TabViewItem member
+                            && member.GroupId == pair.Key.Id
+                        )
+                        {
+                            last = Items[i];
+                        }
                     }
+
+                    // A header appends to its group, including when its members are collapsed.
+                    return new(pair.Key.Id, last, true, true, header);
                 }
             }
         }
 
-        TabItem? tab = GetDropTarget(e);
+        TabItem? tab = hit as TabItem;
         int index = tab == null ? -1 : ItemContainerGenerator.IndexFromContainer(tab);
         Point tabPoint = tab == null ? new Point(-1, -1) : e.GetPosition(tab);
-        if (
-            index >= 0
-            && tab!.Visibility == Visibility.Visible
-            && tabPoint.X >= 0
-            && tabPoint.X <= tab.ActualWidth
-            && tabPoint.Y >= 0
-            && tabPoint.Y <= tab.ActualHeight
-        )
+        if (index >= 0 && tab!.Visibility == Visibility.Visible)
         {
             TryGetGroup(tab, out TabGroup? group);
             bool after = tabPoint.X >= tab.ActualWidth / 2;
@@ -114,10 +114,29 @@ public partial class TabView
         return null;
     }
 
-    private static DependencyObject? GetDragParent(DependencyObject current) =>
-        current is Visual or System.Windows.Media.Media3D.Visual3D
-            ? VisualTreeHelper.GetParent(current)
-            : LogicalTreeHelper.GetParent(current);
+    private void UpdateGroupDragFeedback(TabDragData data, DragEventArgs e)
+    {
+        GroupDropTarget? destination = GetGroupDropTarget(e, data);
+        bool allowed = _isDragging && CanApplyGroupDrop(data, destination);
+        e.Effects = allowed ? DragDropEffects.Move : DragDropEffects.None;
+        ShowDropIndicator(allowed ? destination : null);
+        e.Handled = true;
+    }
+
+    /// <inheritdoc />
+    protected override void OnDragEnter(DragEventArgs e)
+    {
+        base.OnDragEnter(e);
+        if (
+            IsGroupingActive
+            && e.Data.GetData(typeof(TabDragData)) is TabDragData data
+            && !RejectForeignGroupDrag(data, e)
+            && data.Owner == this
+        )
+        {
+            UpdateGroupDragFeedback(data, e);
+        }
+    }
 
     private bool CanApplyGroupDrop(TabDragData data, GroupDropTarget? target) =>
         TryPrepareGroupDrop(data, target, out _, out _, out _, out _, out _);

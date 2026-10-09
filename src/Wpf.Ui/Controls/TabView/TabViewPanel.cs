@@ -13,11 +13,33 @@ public sealed class TabViewPanel : TabPanel
 {
     private List<UIElement> _entries = new();
 
-    private TabView? Owner => ItemsControl.GetItemsOwner(this) as TabView;
+    private TabView? Owner => ItemsControl.GetItemsOwner(this) as TabView ?? TemplatedParent as TabView;
+
+    // Use allocated slots, including margins and rounded corners, rather than the routed hit source.
+    internal FrameworkElement? GetDropElement(Point point)
+    {
+        foreach (FrameworkElement entry in _entries.OfType<FrameworkElement>())
+        {
+            Rect slot = LayoutInformation.GetLayoutSlot(entry);
+            if (
+                entry.Visibility == Visibility.Visible
+                && point.X >= slot.Left
+                && point.X < slot.Right
+                && point.Y >= slot.Top
+                && point.Y < slot.Bottom
+            )
+            {
+                return entry;
+            }
+        }
+        return null;
+    }
 
     /// <inheritdoc />
     protected override Size MeasureOverride(Size availableSize)
     {
+        // Initialize the item generator before resolving its owner, including replacement templates.
+        UIElementCollection children = InternalChildren;
         TabView? owner = Owner;
         if (owner == null || !owner.IsGroupingActive)
         {
@@ -26,7 +48,7 @@ public sealed class TabViewPanel : TabPanel
         }
 
         // The generator still owns every child; this is only a visual-order projection.
-        _entries = owner.GetGroupLayoutEntries(InternalChildren.Cast<UIElement>().ToList());
+        _entries = owner.GetGroupLayoutEntries(children.Cast<UIElement>().ToList());
         double width = 0;
         double height = 0;
         foreach (UIElement entry in _entries)
@@ -42,14 +64,32 @@ public sealed class TabViewPanel : TabPanel
     /// <inheritdoc />
     protected override Size ArrangeOverride(Size finalSize)
     {
-        if (Owner?.IsGroupingActive != true)
+        TabView? owner = Owner;
+        if (owner?.IsGroupingActive != true)
         {
             return base.ArrangeOverride(finalSize);
         }
 
         double x = 0;
+        TabGroup? currentGroup = null;
+        double groupStart = 0;
+        List<(TabGroup Group, Rect Bounds)> backgrounds = new();
         foreach (UIElement entry in _entries)
         {
+            TabGroup? group = owner.GetLayoutGroup(entry);
+            if (group != currentGroup)
+            {
+                if (currentGroup != null)
+                {
+                    backgrounds.Add(
+                        (currentGroup, new Rect(groupStart, 0, x - groupStart, finalSize.Height))
+                    );
+                }
+
+                currentGroup = group;
+                groupStart = x;
+            }
+
             if (entry is System.Windows.Controls.Button header)
             {
                 Canvas.SetLeft(header, x);
@@ -63,6 +103,13 @@ public sealed class TabViewPanel : TabPanel
 
             x += entry.DesiredSize.Width;
         }
+
+        if (currentGroup != null)
+        {
+            backgrounds.Add((currentGroup, new Rect(groupStart, 0, x - groupStart, finalSize.Height)));
+        }
+
+        owner.ArrangeGroupBackgrounds(backgrounds);
 
         return finalSize;
     }

@@ -55,6 +55,12 @@
                     <CheckBox Content="Development expanded" IsChecked="{Binding Groups[0].IsExpanded, Mode=TwoWay}" />
                     <CheckBox Margin="16,0,0,0" Content="Reference expanded" IsChecked="{Binding Groups[1].IsExpanded, Mode=TwoWay}" />
                 </StackPanel>
+                <WrapPanel Margin="0,8,0,0">
+                    <Button Content="Add a long tab row" Command="{Binding AddLongTabRowCommand}" />
+                    <Button Margin="8,0,0,0" Content="Remove extra tabs" Command="{Binding RemoveExtraGroupedTabsCommand}" />
+                </WrapPanel>
+                <TextBlock Margin="0,8,0,0" TextWrapping="Wrap"
+                           Text="Colored regions distinguish Development and Reference from ungrouped tabs. Add long tabs to show the scroll arrows; use the mouse wheel over the strip. Remove extras or collapse both groups to hide the arrows. Use the Gallery theme selector to compare Light and Dark." />
                 <ui:TabView
                     Margin="0,8,0,0"
                     ItemsSource="{Binding GroupedDocuments}"

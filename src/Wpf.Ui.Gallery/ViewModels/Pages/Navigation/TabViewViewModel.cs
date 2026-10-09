@@ -11,6 +11,7 @@ namespace Wpf.Ui.Gallery.ViewModels.Pages.Navigation;
 public partial class TabViewViewModel : ViewModel
 {
     private int _nextTabNumber = 3;
+    private readonly List<GroupedTabDocument> _extraGroupedDocuments = new();
 
     public ObservableCollection<TabDocument> Documents { get; } =
     [
@@ -73,5 +74,31 @@ public partial class TabViewViewModel : ViewModel
             $"Content of grouped document {number}.",
             groupId: "development"
         );
+    }
+
+    [RelayCommand]
+    private void AddLongTabRow()
+    {
+        for (int i = 0; i < 10; i++)
+        {
+            GroupedTabDocument document = new(
+                $"Long document {_nextTabNumber++}.xaml",
+                "Use the arrows or the mouse wheel over the header strip. Switch the Gallery theme to compare Light and Dark.",
+                groupId: i % 2 == 0 ? "development" : "reference"
+            );
+            _extraGroupedDocuments.Add(document);
+            GroupedDocuments.Add(document);
+        }
+    }
+
+    [RelayCommand]
+    private void RemoveExtraGroupedTabs()
+    {
+        foreach (GroupedTabDocument document in _extraGroupedDocuments)
+        {
+            GroupedDocuments.Remove(document);
+        }
+
+        _extraGroupedDocuments.Clear();
     }
 }

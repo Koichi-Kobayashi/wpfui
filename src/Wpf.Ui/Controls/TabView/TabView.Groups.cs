@@ -50,11 +50,22 @@ public partial class TabView
         _groupPanel = GetTemplateChild("HeaderPanel") as TabViewPanel;
         _groupHeaderLayer = GetTemplateChild("PART_GroupHeaders") as Canvas;
         _dropOverlay = GetTemplateChild("PART_DropOverlay") as Canvas;
+        _groupBackgroundLayer = GetTemplateChild("PART_GroupBackgrounds") as Canvas;
+        _headerScroller = GetTemplateChild("PART_HeaderScroller") as ScrollViewer;
+        _scrollLeftButton = GetTemplateChild("PART_ScrollLeftButton") as System.Windows.Controls.Button;
+        _scrollRightButton = GetTemplateChild("PART_ScrollRightButton") as System.Windows.Controls.Button;
+        AttachHeaderStrip();
         InvalidateGroupLayout();
     }
 
     private void DetachGroupTemplate()
     {
+        DetachHeaderStrip();
+        ClearGroupBackgrounds();
+        _groupBackgroundLayer = null;
+        _headerScroller = null;
+        _scrollLeftButton = null;
+        _scrollRightButton = null;
         ClearGroupHeaders();
         _dropOverlay?.Children.Clear();
         _dropOverlay = null;
@@ -100,6 +111,8 @@ public partial class TabView
 
     private void SuspendGroups()
     {
+        DetachHeaderStrip();
+        ClearGroupBackgrounds();
         _groupSubscriptionsEnabled = false;
         DetachGroupSubscriptions();
         ClearGroupHeaders();
@@ -108,6 +121,7 @@ public partial class TabView
     private void ResumeGroups()
     {
         _groupSubscriptionsEnabled = true;
+        AttachHeaderStrip();
         InvalidateGroupLayout();
     }
 
@@ -179,6 +193,7 @@ public partial class TabView
                         MinHeight = 36,
                         Padding = new Thickness(8, 4, 8, 4),
                         Margin = new Thickness(2, 0, 2, 0),
+                        Background = Brushes.Transparent,
                     };
                     button.Click += OnGroupHeaderClick;
                     _groupHeaders.Add(group, button);
@@ -212,6 +227,13 @@ public partial class TabView
 
         _groupPanel?.InvalidateMeasure();
         _groupHeaderLayer?.InvalidateMeasure();
+        if (!IsGroupingActive)
+        {
+            ClearGroupBackgrounds();
+        }
+
+        UpdateGroupBackgroundAppearance(UseHighContrastGroupBackground);
+        UpdateHeaderScrollButtons();
     }
 
     internal void OnGroupMembershipChanged()
@@ -230,6 +252,20 @@ public partial class TabView
         return item is TabViewItem tab
             && !string.IsNullOrEmpty(tab.GroupId)
             && _groupsById.TryGetValue(tab.GroupId!, out group);
+    }
+
+    internal TabGroup? GetLayoutGroup(UIElement element)
+    {
+        foreach (KeyValuePair<TabGroup, Button> pair in _groupHeaders)
+        {
+            if (pair.Value == element)
+            {
+                return pair.Key;
+            }
+        }
+
+        TryGetGroup(element, out TabGroup? group);
+        return group;
     }
 
     private static bool HasHeaderKeyboardFocus(TabViewItem container)

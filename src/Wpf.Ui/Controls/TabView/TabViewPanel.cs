@@ -13,6 +13,33 @@ public sealed class TabViewPanel : TabPanel
 {
     private List<UIElement> _entries = new();
 
+    internal List<(TabGroup? Group, FrameworkElement Visual, Rect Bounds)> GetDropBlocks()
+    {
+        List<(TabGroup? Group, FrameworkElement Visual, Rect Bounds)> blocks = new();
+        foreach (FrameworkElement entry in _entries.OfType<FrameworkElement>())
+        {
+            if (entry.Visibility != Visibility.Visible)
+            {
+                continue;
+            }
+
+            TabGroup? group = Owner?.GetLayoutGroup(entry);
+            Rect slot = LayoutInformation.GetLayoutSlot(entry);
+            if (group != null && blocks.Count > 0 && blocks[blocks.Count - 1].Group == group)
+            {
+                (TabGroup? Group, FrameworkElement Visual, Rect Bounds) previous = blocks[blocks.Count - 1];
+                slot.Union(previous.Bounds);
+                blocks[blocks.Count - 1] = (group, previous.Visual, slot);
+            }
+            else
+            {
+                blocks.Add((group, entry, slot));
+            }
+        }
+
+        return blocks;
+    }
+
     private TabView? Owner => ItemsControl.GetItemsOwner(this) as TabView ?? TemplatedParent as TabView;
 
     // Use allocated slots, including margins and rounded corners, rather than the routed hit source.

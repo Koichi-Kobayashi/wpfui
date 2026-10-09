@@ -50,7 +50,7 @@
             HeaderText="Tab groups proof of concept (MVVM)."
             XamlCode="&lt;ui:TabView ItemsSource=&quot;{Binding GroupedDocuments}&quot; TabGroups=&quot;{Binding Groups}&quot; /&gt;">
             <StackPanel>
-                <TextBlock TextWrapping="Wrap" Text="Drag to either side of a tab to reorder or change its group. Drop on a colored group header to append, even when collapsed. Drop on Home or Notes to ungroup. The insertion line or header outline indicates an allowed drop; Esc cancels. Collapse a group to keep its selected document open." />
+                <TextBlock TextWrapping="Wrap" Text="Drag a group header to move all its tabs before or after another group or an ungrouped tab, even when collapsed. A short click still expands or collapses the group. Drag to either side of a tab to reorder or change its group. Drop on a colored group header to append, even when collapsed. Drop on Home or Notes to ungroup. The insertion line or header outline indicates an allowed drop; Esc cancels. Collapse a group to keep its selected document open." />
                 <ItemsControl ItemsSource="{Binding Groups}" Margin="0,8,0,0">
                     <ItemsControl.ItemsPanel>
                         <ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate>
@@ -123,7 +123,7 @@
             HeaderText="Tab groups with read-only membership."
             XamlCode="&lt;Setter Property=&quot;GroupId&quot; Value=&quot;{Binding GroupId, Mode=OneWay}&quot; /&gt;">
             <StackPanel>
-                <TextBlock TextWrapping="Wrap" Text="These same models use OneWay membership bindings here. Reordering within a group is allowed; moving between groups is rejected with the no-drop cursor. Try the writable group sample above to move tabs between groups." />
+                <TextBlock TextWrapping="Wrap" Text="These same models use OneWay membership bindings here. Reordering within a group and moving a whole group by its header are allowed; changing an individual tab to another group is rejected with the no-drop cursor. Try the writable group sample above to move tabs between groups." />
                 <ui:TabView Margin="0,8,0,0" CanAddTabs="False"
                             ItemsSource="{Binding GroupedDocuments}" TabGroups="{Binding Groups}">
                     <ui:TabView.ItemContainerStyle>

@@ -145,6 +145,11 @@ public partial class TabView
 
     internal void InvalidateGroupLayout()
     {
+        if (_deferGroupLayout)
+        {
+            return;
+        }
+
         DetachGroupSubscriptions();
         _groupsById.Clear();
         if (TabGroups != null)
@@ -298,28 +303,47 @@ public partial class TabView
     {
         bool selected = _containers.Any(tab => tab.IsSelected && tab.GroupId == group.Id);
         SolidColorBrush color = new(GetDisplayedGroupColor(group));
-        StackPanel content = new() { Orientation = Orientation.Horizontal };
-        content.Children.Add(
-            new Border
-            {
-                Width = 8,
-                Height = 8,
-                CornerRadius = new CornerRadius(4),
-                Background = color,
-                Margin = new Thickness(0, 0, 6, 0),
-            }
+        StackPanel? content = button.Content as StackPanel;
+        if (
+            content == null
+            || content.Children.Count != 2
+            || content.Children[0] is not Border
+            || content.Children[1] is not System.Windows.Controls.TextBlock
+        )
+        {
+            content = new() { Orientation = Orientation.Horizontal };
+            content.Children.Add(
+                new Border
+                {
+                    Width = 8,
+                    Height = 8,
+                    CornerRadius = new CornerRadius(4),
+                    Background = color,
+                    Margin = new Thickness(0, 0, 6, 0),
+                }
+            );
+            content.Children.Add(
+                new System.Windows.Controls.TextBlock
+                {
+                    Text = group.Header,
+                    FontWeight = selected ? FontWeights.Bold : FontWeights.Normal,
+                }
+            );
+            button.SetCurrentValue(ContentControl.ContentProperty, content);
+        }
+
+        // Keep the hit visual alive during mouse-down, selection changes and editor preview cleanup.
+        ((Border)content.Children[0]).SetCurrentValue(Border.BackgroundProperty, color);
+        System.Windows.Controls.TextBlock label = (System.Windows.Controls.TextBlock)content.Children[1];
+        label.SetCurrentValue(System.Windows.Controls.TextBlock.TextProperty, group.Header);
+        label.SetCurrentValue(
+            System.Windows.Controls.TextBlock.FontWeightProperty,
+            selected ? FontWeights.Bold : FontWeights.Normal
         );
-        content.Children.Add(
-            new System.Windows.Controls.TextBlock
-            {
-                Text = group.Header,
-                FontWeight = selected ? FontWeights.Bold : FontWeights.Normal,
-            }
-        );
-        button.SetCurrentValue(ContentControl.ContentProperty, content);
         button.SetCurrentValue(BorderBrushProperty, color);
         button.SetCurrentValue(BorderThicknessProperty, new Thickness(0, 0, 0, selected ? 3 : 1));
-        button.SetCurrentValue(IsEnabledProperty, !group.IsFrozen);
+        // Frozen definitions cannot expand, but their tabs can still be moved as a group.
+        button.SetCurrentValue(IsEnabledProperty, true);
         button.SetCurrentValue(ToolTipProperty, group.IsExpanded ? "Collapse group" : "Expand group");
         System.Windows.Automation.AutomationProperties.SetName(
             button,
@@ -330,6 +354,11 @@ public partial class TabView
     private void OnGroupHeaderClick(object sender, RoutedEventArgs e)
     {
         e.Handled = true;
+        if (_isDragging && _draggedGroupHeader == sender)
+        {
+            return;
+        }
+
         if (sender is Button { Tag: TabGroup group } && !group.IsFrozen)
         {
             group.SetCurrentValue(TabGroup.IsExpandedProperty, !group.IsExpanded);
@@ -393,6 +422,10 @@ public partial class TabView
     protected override void OnSelectionChanged(SelectionChangedEventArgs e)
     {
         base.OnSelectionChanged(e);
+        if (_deferGroupLayout)
+        {
+            return;
+        }
         foreach (KeyValuePair<TabGroup, Button> pair in _groupHeaders)
         {
             UpdateGroupHeader(pair.Key, pair.Value);

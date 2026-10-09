@@ -412,8 +412,17 @@ public partial class TabView : System.Windows.Controls.TabControl
             !CanReorderTabs
             || GetMutableCollection() == null
             || e.OriginalSource is not DependencyObject source
-            || ItemsControl.ContainerFromElement(this, source) is not TabItem tab
         )
+        {
+            return;
+        }
+
+        if (TryBeginWholeGroupDrag(source, e.GetPosition(this)))
+        {
+            return;
+        }
+
+        if (ItemsControl.ContainerFromElement(this, source) is not TabItem tab)
         {
             return;
         }
@@ -441,7 +450,7 @@ public partial class TabView : System.Windows.Controls.TabControl
     protected override void OnPreviewMouseMove(MouseEventArgs e)
     {
         base.OnPreviewMouseMove(e);
-        if (_isDragging || _draggedTab == null)
+        if (_isDragging || (_draggedTab == null && _draggedGroup == null))
         {
             return;
         }
@@ -461,8 +470,9 @@ public partial class TabView : System.Windows.Controls.TabControl
             return;
         }
 
-        int index = ItemContainerGenerator.IndexFromContainer(_draggedTab);
-        if (index < 0)
+        TabDragData? data = _draggedGroup == null ? null : CreateWholeGroupDragData(_draggedGroup);
+        int index = _draggedTab == null ? -1 : ItemContainerGenerator.IndexFromContainer(_draggedTab);
+        if (data == null && index < 0)
         {
             EndDrag();
             return;
@@ -471,7 +481,23 @@ public partial class TabView : System.Windows.Controls.TabControl
         _isDragging = true;
         try
         {
-            DragDrop.DoDragDrop(_draggedTab, new TabDragData(this, Items[index]), DragDropEffects.Move);
+            if (_draggedGroupHeader != null)
+            {
+                // ButtonBase otherwise keeps mouse capture and may raise Click after the drag.
+                _draggedGroupHeader.ReleaseMouseCapture();
+                e.Handled = true;
+            }
+
+            if (!_isDragging)
+            {
+                return;
+            }
+
+            DragDrop.DoDragDrop(
+                (DependencyObject?)_draggedGroupHeader ?? _draggedTab!,
+                data ?? new TabDragData(this, Items[index]),
+                DragDropEffects.Move
+            );
         }
         finally
         {
@@ -508,6 +534,13 @@ public partial class TabView : System.Windows.Controls.TabControl
             if (IsGroupingActive)
             {
                 UpdateGroupDragFeedback(data, e);
+                return;
+            }
+
+            if (data.Group != null)
+            {
+                e.Effects = DragDropEffects.None;
+                e.Handled = true;
                 return;
             }
 
@@ -549,11 +582,21 @@ public partial class TabView : System.Windows.Controls.TabControl
             if (IsGroupingActive)
             {
                 e.Effects = DragDropEffects.None;
-                if (ApplyGroupDrop(data, GetGroupDropTarget(e, data)))
+                if (
+                    data.Group != null
+                        ? ApplyWholeGroupDrop(data, GetWholeGroupDropTarget(e))
+                        : ApplyGroupDrop(data, GetGroupDropTarget(e, data))
+                )
                 {
                     e.Effects = DragDropEffects.Move;
                 }
 
+                return;
+            }
+
+            if (data.Group != null)
+            {
+                e.Effects = DragDropEffects.None;
                 return;
             }
 
@@ -587,6 +630,8 @@ public partial class TabView : System.Windows.Controls.TabControl
     {
         ShowDropIndicator(null);
         _draggedTab = null;
+        _draggedGroup = null;
+        _draggedGroupHeader = null;
         _isDragging = false;
     }
 
@@ -608,6 +653,14 @@ public partial class TabView : System.Windows.Controls.TabControl
 
     private sealed class TabDragData(TabView owner, object item)
     {
+        public TabGroup? Group { get; init; }
+
+        public object[]? Snapshot { get; init; }
+
+        public string?[]? Memberships { get; init; }
+
+        public TabGroup[]? Definitions { get; init; }
+
         public TabView Owner { get; } = owner;
 
         public object Item { get; } = item;

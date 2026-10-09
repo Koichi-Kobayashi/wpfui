@@ -17,7 +17,7 @@ public partial class TabView
 
     private bool RejectForeignGroupDrag(TabDragData data, DragEventArgs e)
     {
-        if (!IsGroupingActive || data.Owner == this)
+        if ((!IsGroupingActive && data.Group == null) || data.Owner == this)
         {
             return false;
         }
@@ -114,6 +114,12 @@ public partial class TabView
 
     private void UpdateGroupDragFeedback(TabDragData data, DragEventArgs e)
     {
+        if (data.Group != null)
+        {
+            UpdateWholeGroupDragFeedback(data, e);
+            return;
+        }
+
         GroupDropTarget? destination = GetGroupDropTarget(e, data);
         bool allowed = _isDragging && CanApplyGroupDrop(data, destination);
         e.Effects = allowed ? DragDropEffects.Move : DragDropEffects.None;
@@ -126,10 +132,10 @@ public partial class TabView
     {
         base.OnDragEnter(e);
         if (
-            IsGroupingActive
-            && e.Data.GetData(typeof(TabDragData)) is TabDragData data
+            e.Data.GetData(typeof(TabDragData)) is TabDragData data
             && !RejectForeignGroupDrag(data, e)
             && data.Owner == this
+            && IsGroupingActive
         )
         {
             UpdateGroupDragFeedback(data, e);
@@ -356,6 +362,10 @@ public partial class TabView
         Point point = target.Visual.TranslatePoint(new Point(0, 0), _dropOverlay);
         bool outline = target.IsHeader;
         double x = point.X + (!outline && target.After ? target.Visual.ActualWidth : 0);
+        if (target.Visual == _groupPanel && target.Anchor == null)
+        {
+            x = _groupPanel!.TranslatePoint(new Point(GetHeaderAppendBounds().Right, 0), _dropOverlay).X;
+        }
         _dropIndicator.SetCurrentValue(WidthProperty, outline ? target.Visual.ActualWidth : 2);
         _dropIndicator.SetCurrentValue(HeightProperty, target.Visual.ActualHeight);
         _dropIndicator.SetCurrentValue(Border.BorderThicknessProperty, new Thickness(outline ? 2 : 1));

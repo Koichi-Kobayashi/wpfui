@@ -396,6 +396,7 @@ public partial class TabView
 
     private void CloseGroupManagementUI()
     {
+        bool hadPreview = _editingGroup != null;
         if (_groupMenu != null)
         {
             _groupMenu.SetCurrentValue(ContextMenu.IsOpenProperty, false);
@@ -411,7 +412,10 @@ public partial class TabView
         _editingGroup = null;
         _groupEditorName = null;
         _groupEditorError = null;
-        RefreshGroupEditorPreview();
+        if (hadPreview)
+        {
+            RefreshGroupEditorPreview();
+        }
     }
 
     private Color GetDisplayedGroupColor(TabGroup group) =>

@@ -326,7 +326,11 @@ public partial class TabViewTests
             Layout(view);
             frozen.Freeze();
             Layout(view);
-            Assert.False(GroupHeader(view, frozen).IsEnabled);
+            // A frozen definition still accepts dragging; clicking must not change its expansion.
+            Assert.True(GroupHeader(view, frozen).IsEnabled);
+            bool expanded = frozen.IsExpanded;
+            GroupHeader(view, frozen).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Assert.Equal(expanded, frozen.IsExpanded);
         });
 
     [Fact]

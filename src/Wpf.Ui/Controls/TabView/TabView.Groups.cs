@@ -345,7 +345,11 @@ public partial class TabView
             selected ? FontWeights.Bold : FontWeights.Normal
         );
         button.SetCurrentValue(BorderBrushProperty, color);
-        button.SetCurrentValue(BorderThicknessProperty, new Thickness(0, 0, 0, selected ? 3 : 1));
+        // The Fluent button template uses separate brushes during hover and press.
+        button.SetCurrentValue(Button.MouseOverBorderBrushProperty, color);
+        button.SetCurrentValue(Button.PressedBorderBrushProperty, color);
+        // Keep the group accent visible regardless of selection or membership binding mode.
+        button.SetCurrentValue(BorderThicknessProperty, new Thickness(0, 0, 0, 3));
         // Frozen definitions cannot expand, but their tabs can still be moved as a group.
         button.SetCurrentValue(IsEnabledProperty, true);
         button.SetCurrentValue(ToolTipProperty, group.IsExpanded ? "Collapse group" : "Expand group");

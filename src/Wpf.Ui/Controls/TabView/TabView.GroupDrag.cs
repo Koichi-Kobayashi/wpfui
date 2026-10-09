@@ -4,9 +4,7 @@
 // All Rights Reserved.
 
 using System.Collections;
-using System.Reflection;
 using System.Windows.Controls;
-using System.Windows.Data;
 using System.Windows.Input;
 
 namespace Wpf.Ui.Controls;
@@ -317,93 +315,15 @@ public partial class TabView
         return true;
     }
 
-    // Conservative support for synchronous, plain CLR string properties. Complex/async conversions
-    // and validation require application-owned transactions and are intentionally rejected.
-    private sealed class GroupIdWrite(TabViewItem tab, BindingExpression? binding, PropertyInfo? property)
+    private sealed class GroupIdWrite(PropertyWrite write)
     {
         internal static GroupIdWrite? TryCreate(TabViewItem tab, bool ownContainer)
         {
-            BindingExpression? expression = BindingOperations.GetBindingExpression(
-                tab,
-                TabViewItem.GroupIdProperty
-            );
-            if (!BindingOperations.IsDataBound(tab, TabViewItem.GroupIdProperty))
-            {
-                return
-                    ownContainer
-                    && !DependencyPropertyHelper.GetValueSource(tab, TabViewItem.GroupIdProperty).IsExpression
-                    ? new(tab, null, null)
-                    : null;
-            }
-
-            if (expression == null || expression.Status != BindingStatus.Active || expression.HasError)
-            {
-                return null;
-            }
-
-            Binding binding = expression.ParentBinding;
-            object? source = expression.ResolvedSource;
-            PropertyInfo? property = source
-                ?.GetType()
-                .GetProperty(expression.ResolvedSourcePropertyName ?? string.Empty);
-            if (
-                binding.Mode != BindingMode.TwoWay
-                || binding.IsAsync
-                || binding.Delay != 0
-                || binding.Converter != null
-                || binding.ValidationRules.Count != 0
-                || (binding.ValidatesOnDataErrors && source is System.ComponentModel.IDataErrorInfo)
-                || (
-                    binding.ValidatesOnNotifyDataErrors
-                    && source is System.ComponentModel.INotifyDataErrorInfo
-                )
-                || !string.IsNullOrEmpty(binding.BindingGroupName)
-                || source == null
-                || source.GetType().IsValueType
-                || property?.PropertyType != typeof(string)
-                || property.GetIndexParameters().Length != 0
-                || property.GetMethod?.IsPublic != true
-                || property.SetMethod?.IsPublic != true
-                || property
-                    .SetMethod.ReturnParameter.GetRequiredCustomModifiers()
-                    .Any(type => type.FullName == "System.Runtime.CompilerServices.IsExternalInit")
-                || !Equals(property.GetValue(source), tab.GroupId)
-            )
-            {
-                return null;
-            }
-
-            return new(tab, expression, property);
+            PropertyWrite? write = PropertyWrite.TryCreate(tab, TabViewItem.GroupIdProperty, ownContainer);
+            return write == null ? null : new(write);
         }
 
-        internal bool Set(string? value)
-        {
-            if (
-                binding != null
-                && BindingOperations.GetBindingExpression(tab, TabViewItem.GroupIdProperty) != binding
-            )
-            {
-                return false;
-            }
-
-            tab.SetCurrentValue(TabViewItem.GroupIdProperty, value);
-
-            // PropertyChanged bindings may already have written synchronously. Explicit/LostFocus
-            // bindings still need UpdateSource; do not call a model setter twice for the same drop.
-            if (
-                binding != null
-                && (binding.HasError || !Equals(property!.GetValue(binding.ResolvedSource), value))
-            )
-            {
-                binding.UpdateSource();
-            }
-
-            return tab.GroupId == value
-                && (
-                    binding == null
-                    || (!binding.HasError && Equals(property!.GetValue(binding.ResolvedSource), value))
-                );
-        }
+        internal bool Set(string? value) => write.Set(value);
     }
 
     private void ShowDropIndicator(GroupDropTarget? target)

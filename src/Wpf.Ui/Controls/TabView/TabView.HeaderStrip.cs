@@ -95,7 +95,7 @@ public partial class TabView
             }
             else
             {
-                Color color = pair.Key.Color;
+                Color color = GetDisplayedGroupColor(pair.Key);
                 SetGroupBrush(
                     background,
                     Border.BackgroundProperty,

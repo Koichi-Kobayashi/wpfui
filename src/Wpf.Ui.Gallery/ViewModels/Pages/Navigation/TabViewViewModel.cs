@@ -49,6 +49,11 @@ public partial class TabViewViewModel : ViewModel
         new("ViewModel.cs", "Another development document.", groupId: "development"),
         new("Notes", "An ungrouped tab between groups."),
         new("README.md", "A reference document.", groupId: "reference"),
+        new(
+            "Guide.md",
+            "The remaining Reference tab keeps its original group name and color when README.md is moved.",
+            groupId: "reference"
+        ),
     ];
 
     [ObservableProperty]

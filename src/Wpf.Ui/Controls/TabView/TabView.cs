@@ -123,6 +123,7 @@ public partial class TabView : System.Windows.Controls.TabControl
     /// <inheritdoc />
     protected override void OnItemsSourceChanged(IEnumerable oldValue, IEnumerable newValue)
     {
+        CloseGroupManagementUI();
         EndDrag();
         base.OnItemsSourceChanged(oldValue, newValue);
         InvalidateGroupLayout();

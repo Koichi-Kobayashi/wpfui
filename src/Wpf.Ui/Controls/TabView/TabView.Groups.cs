@@ -60,6 +60,7 @@ public partial class TabView
 
     private void DetachGroupTemplate()
     {
+        CloseGroupManagementUI();
         DetachHeaderStrip();
         ClearGroupBackgrounds();
         _groupBackgroundLayer = null;
@@ -111,6 +112,7 @@ public partial class TabView
 
     private void SuspendGroups()
     {
+        CloseGroupManagementUI();
         DetachHeaderStrip();
         ClearGroupBackgrounds();
         _groupSubscriptionsEnabled = false;
@@ -127,6 +129,10 @@ public partial class TabView
 
     private void OnGroupCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
+        if (!_isUpdating)
+        {
+            CloseGroupManagementUI();
+        }
         EndDrag();
         InvalidateGroupLayout();
     }
@@ -234,6 +240,7 @@ public partial class TabView
 
         UpdateGroupBackgroundAppearance(UseHighContrastGroupBackground);
         UpdateHeaderScrollButtons();
+        ValidateGroupEditor();
     }
 
     internal void OnGroupMembershipChanged()
@@ -290,7 +297,7 @@ public partial class TabView
     private void UpdateGroupHeader(TabGroup group, Button button)
     {
         bool selected = _containers.Any(tab => tab.IsSelected && tab.GroupId == group.Id);
-        SolidColorBrush color = new(group.Color);
+        SolidColorBrush color = new(GetDisplayedGroupColor(group));
         StackPanel content = new() { Orientation = Orientation.Horizontal };
         content.Children.Add(
             new Border
@@ -374,6 +381,7 @@ public partial class TabView
     {
         if (!_isUpdating)
         {
+            CloseGroupManagementUI();
             EndDrag();
         }
 

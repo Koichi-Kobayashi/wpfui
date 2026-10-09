@@ -51,10 +51,18 @@
             XamlCode="&lt;ui:TabView ItemsSource=&quot;{Binding GroupedDocuments}&quot; TabGroups=&quot;{Binding Groups}&quot; /&gt;">
             <StackPanel>
                 <TextBlock TextWrapping="Wrap" Text="Drag to either side of a tab to reorder or change its group. Drop on a colored group header to append, even when collapsed. Drop on Home or Notes to ungroup. The insertion line or header outline indicates an allowed drop; Esc cancels. Collapse a group to keep its selected document open." />
-                <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
-                    <CheckBox Content="Development expanded" IsChecked="{Binding Groups[0].IsExpanded, Mode=TwoWay}" />
-                    <CheckBox Margin="16,0,0,0" Content="Reference expanded" IsChecked="{Binding Groups[1].IsExpanded, Mode=TwoWay}" />
-                </StackPanel>
+                <ItemsControl ItemsSource="{Binding Groups}" Margin="0,8,0,0">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <CheckBox Margin="0,0,16,0" Content="{Binding Header}" IsChecked="{Binding IsExpanded, Mode=TwoWay}" />
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                <TextBlock Margin="0,8,0,0" TextWrapping="Wrap"
+                           Text="Right-click a group header to edit its name and color or ungroup its tabs. Right-click a tab to create a group, change its group, or remove its membership. Enter applies the editor; Escape cancels. Moving the last tab out hides the old header but retains its definition. Disabled commands indicate read-only data or bindings." />
                 <WrapPanel Margin="0,8,0,0">
                     <Button Content="Add a long tab row" Command="{Binding AddLongTabRowCommand}" />
                     <Button Margin="8,0,0,0" Content="Remove extra tabs" Command="{Binding RemoveExtraGroupedTabsCommand}" />
@@ -83,6 +91,31 @@
                         </Style>
                     </ui:TabView.ItemContainerStyle>
                 </ui:TabView>
+                <Expander Header="ViewModel group membership" Margin="0,8,0,0">
+                    <StackPanel>
+                        <ItemsControl ItemsSource="{Binding Groups}" Margin="0,0,0,8">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="{Binding Header}" Width="180" />
+                                        <TextBlock Text="{Binding Color}" Width="120" />
+                                        <TextBlock Text="{Binding Id}" />
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <ItemsControl ItemsSource="{Binding GroupedDocuments}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="{Binding Header}" Width="180" />
+                                        <TextBlock Text="{Binding GroupId, TargetNullValue='Ungrouped'}" />
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </Expander>
             </StackPanel>
         </controls:ControlExample>
         <controls:ControlExample

@@ -126,15 +126,15 @@ public partial class TabView
         return new Rect(0, 0, end, _groupPanel?.ActualHeight ?? 0);
     }
 
-    private bool WholeGroupDragIsValid(TabDragData data, IList collection)
+    private bool WholeGroupDragIsValid(TabDragData data, IList collection, bool external = false)
     {
         if (
             !IsGroupingActive
-            || !CanReorderTabs
-            || !_isDragging
+            || (!external && !CanReorderTabs)
+            || (!external && !_isDragging)
             || data.Owner != this
             || data.Group == null
-            || data.Group != _draggedGroup
+            || (!external && data.Group != _draggedGroup)
             || !OwnsGroup(data.Group)
             || data.Group.Id != data.GroupId
             || data.Snapshot == null
@@ -190,14 +190,14 @@ public partial class TabView
         return blocks;
     }
 
-    private object[]? PlanWholeGroupDrop(TabDragData data, WholeGroupDropTarget? target)
+    private object[]? PlanWholeGroupDrop(TabDragData data, WholeGroupDropTarget? target, bool external = false)
     {
         IList? collection = GetMutableCollection();
         if (
             _isUpdating
             || target == null
             || collection == null
-            || !WholeGroupDragIsValid(data, collection)
+            || !WholeGroupDragIsValid(data, collection, external)
             || !MatchesItems(collection, data.Snapshot!)
         )
         {
@@ -281,9 +281,9 @@ public partial class TabView
         _dropIndicator!.SetCurrentValue(HeightProperty, target.Bounds.Height);
     }
 
-    private bool ApplyWholeGroupDrop(TabDragData data, WholeGroupDropTarget? target)
+    private bool ApplyWholeGroupDrop(TabDragData data, WholeGroupDropTarget? target, bool external = false)
     {
-        object[]? after = PlanWholeGroupDrop(data, target);
+        object[]? after = PlanWholeGroupDrop(data, target, external);
         IList? collection = GetMutableCollection();
         if (after == null || collection == null)
         {
@@ -309,7 +309,7 @@ public partial class TabView
             object? next = last + 1 < after.Length ? after[last + 1] : null;
             foreach (object member in members.AsEnumerable().Reverse())
             {
-                if (!WholeGroupDragIsValid(data, collection) || !MatchesItems(collection, expected))
+                if (!WholeGroupDragIsValid(data, collection, external) || !MatchesItems(collection, expected))
                 {
                     return false;
                 }
@@ -337,7 +337,7 @@ public partial class TabView
                         RefreshCollection(collection);
                     }
                     expected = stepAfter;
-                    if (!WholeGroupDragIsValid(data, collection) || !MatchesItems(collection, expected))
+                    if (!WholeGroupDragIsValid(data, collection, external) || !MatchesItems(collection, expected))
                     {
                         return false;
                     }

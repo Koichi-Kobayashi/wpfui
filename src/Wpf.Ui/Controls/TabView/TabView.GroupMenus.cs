@@ -92,15 +92,19 @@ public partial class TabView
         menu.SetCurrentValue(ContextMenu.IsOpenProperty, true);
     }
 
-    private ContextMenu? BuildGroupMenu(FrameworkElement target)
+    private ContextMenu? BuildGroupMenu(FrameworkElement target) => BuildGroupMenuForPresentation(target, null, false);
+
+    private ContextMenu? BuildGroupMenuForPresentation(FrameworkElement target, FrameworkElement? placementTarget, bool includeCustomMenu)
     {
-        if (!IsGroupingActive || HasCustomGroupMenu(target))
+        if (!IsGroupingActive || (!includeCustomMenu && HasCustomGroupMenu(target)))
         {
             return null;
         }
 
-        ContextMenu menu = new() { PlacementTarget = target };
+        FrameworkElement anchor = placementTarget ?? target;
+        ContextMenu menu = new() { PlacementTarget = anchor };
         menu.Resources.MergedDictionaries.Add(Resources);
+        menu.Opened += (_, _) => _groupMenu = menu;
         menu.Closed += (_, _) =>
         {
             if (ReferenceEquals(_groupMenu, menu))
@@ -119,11 +123,11 @@ public partial class TabView
                     TabGroup? group = CreateGroupForTab(tab);
                     if (group != null)
                     {
-                        ShowGroupEditor(group, target);
+                        ShowGroupEditor(group, anchor);
                     }
                     else
                     {
-                        ShowGroupOperationError(target);
+                        ShowGroupOperationError(anchor);
                     }
                 }
             );
@@ -138,7 +142,7 @@ public partial class TabView
                     {
                         if (!ChangeMembership(tab, group.Id))
                         {
-                            ShowGroupOperationError(target);
+                            ShowGroupOperationError(anchor);
                         }
                     }
                 );
@@ -156,7 +160,7 @@ public partial class TabView
                     {
                         if (!ChangeMembership(tab, null))
                         {
-                            ShowGroupOperationError(target);
+                            ShowGroupOperationError(anchor);
                         }
                     }
                 );
@@ -181,7 +185,7 @@ public partial class TabView
                 {
                     if (OwnsGroup(group))
                     {
-                        ShowGroupEditor(group, target);
+                        ShowGroupEditor(group, anchor);
                     }
                 }
             );
@@ -193,7 +197,7 @@ public partial class TabView
                 {
                     if (!Ungroup(group))
                     {
-                        ShowGroupOperationError(target);
+                        ShowGroupOperationError(anchor);
                     }
                 }
             );

@@ -405,13 +405,15 @@ internal sealed class TabViewAutomationPeer(TabView owner) : TabControlAutomatio
             }
             else
             {
-                int index = ((TabView)Owner).ItemContainerGenerator.IndexFromContainer(entry);
+                // During removal the generator can still expose indices from the old item list.
+                // Resolve the container's item directly and match against the standard peer snapshot.
+                object item = ((TabView)Owner).ItemContainerGenerator.ItemFromContainer(entry);
                 peer =
-                    index < 0
+                    ReferenceEquals(item, DependencyProperty.UnsetValue)
                         ? null
                         : standard
                             ?.OfType<ItemAutomationPeer>()
-                            .FirstOrDefault(itemPeer => Equals(itemPeer.Item, ((TabView)Owner).Items[index]));
+                            .FirstOrDefault(itemPeer => Equals(itemPeer.Item, item));
             }
             if (peer != null && !result.Contains(peer))
                 result.Add(peer);

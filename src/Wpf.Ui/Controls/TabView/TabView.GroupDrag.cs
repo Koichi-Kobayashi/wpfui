@@ -177,7 +177,8 @@ public partial class TabView
         out TabViewItem? tab,
         out GroupIdWrite? write,
         out int oldIndex,
-        out int newIndex
+        out int newIndex,
+        bool external = false
     )
     {
         collection = GetMutableCollection();
@@ -188,11 +189,11 @@ public partial class TabView
         if (
             _isUpdating
             || !IsGroupingActive
-            || !CanReorderTabs
+            || (!external && !CanReorderTabs)
             || target == null
             || collection == null
             || tab == null
-            || tab != _draggedTab
+            || (!external && tab != _draggedTab)
             || tab.GroupId != data.GroupId
             || Items.Cast<object>().Count(item => IsSameItem(item, data.Item)) != 1
             || (target.GroupId != null && !_groupsById.ContainsKey(target.GroupId))
@@ -240,7 +241,7 @@ public partial class TabView
         return true;
     }
 
-    private bool ApplyGroupDrop(TabDragData data, GroupDropTarget? target)
+    private bool ApplyGroupDrop(TabDragData data, GroupDropTarget? target, bool external = false)
     {
         if (
             !TryPrepareGroupDrop(
@@ -250,7 +251,8 @@ public partial class TabView
                 out TabViewItem? tab,
                 out GroupIdWrite? write,
                 out int oldIndex,
-                out int newIndex
+                out int newIndex,
+                external
             )
         )
         {

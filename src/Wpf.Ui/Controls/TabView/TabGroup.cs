@@ -5,9 +5,62 @@
 
 namespace Wpf.Ui.Controls;
 
-/// <summary>Provisional group definition for the TabView grouping proof of concept.</summary>
+/// <summary>Defines the identity, appearance and expansion state of a TabView group.</summary>
+/// <remarks>
+/// Empty groups retain their definitions but have no visible header. Interactive edits preserve
+/// bindings and support synchronous TwoWay CLR property bindings of the same type, without
+/// converters, delays, validation rules or binding groups. Other bindings remain display-only.
+/// Frozen definitions cannot be edited, but their tabs can still be reordered.
+/// </remarks>
 public sealed class TabGroup : Freezable
 {
+    internal bool IsChangingToolTip { get; private set; }
+
+    internal event EventHandler? ToolTipChanged;
+
+    /// <summary>Identifies the <see cref="ToolTip"/> dependency property.</summary>
+    public static readonly DependencyProperty ToolTipProperty = DependencyProperty.Register(
+        nameof(ToolTip),
+        typeof(object),
+        typeof(TabGroup),
+        new PropertyMetadata(null)
+    );
+
+    /// <summary>Gets or sets the content of the group header tooltip.</summary>
+    /// <remarks>
+    /// A configured value takes precedence over the header's local value, binding or style.
+    /// An unset value uses the header's configured tooltip, or the expanded or collapsed
+    /// description when the header has no tooltip configuration. An explicitly set null,
+    /// including a binding that resolves to null, hides the tooltip. Strings, bindings and
+    /// custom content are supported. UI elements already parented elsewhere are not reparented.
+    /// The default descriptions can be localized with the TabViewGroupCollapseToolTip and
+    /// TabViewGroupExpandToolTip resource keys.
+    /// </remarks>
+    public object? ToolTip
+    {
+        get => GetValue(ToolTipProperty);
+        set => SetValue(ToolTipProperty, value);
+    }
+
+    /// <inheritdoc />
+    protected override void OnPropertyChanged(DependencyPropertyChangedEventArgs e)
+    {
+        bool previous = IsChangingToolTip;
+        IsChangingToolTip = e.Property == ToolTipProperty;
+        try
+        {
+            base.OnPropertyChanged(e);
+            if (IsChangingToolTip)
+            {
+                ToolTipChanged?.Invoke(this, EventArgs.Empty);
+            }
+        }
+        finally
+        {
+            IsChangingToolTip = previous;
+        }
+    }
+
     /// <summary>Identifies the <see cref="Id"/> dependency property.</summary>
     public static readonly DependencyProperty IdProperty = DependencyProperty.Register(
         nameof(Id),
@@ -41,6 +94,10 @@ public sealed class TabGroup : Freezable
     );
 
     /// <summary>Gets or sets the group identifier.</summary>
+    /// <remarks>
+    /// Null and empty identifiers do not define a group. For duplicate identifiers the first
+    /// definition in TabView.TabGroups is used. Changing an identifier does not rewrite tab memberships.
+    /// </remarks>
     public string Id
     {
         get => (string)GetValue(IdProperty);

@@ -12,6 +12,26 @@ namespace Wpf.Ui.Controls;
 /// <summary>An internal header, separate from the tab item generator and selection model.</summary>
 internal sealed class TabViewGroupHeader(TabView tabView, TabGroup group) : Button
 {
+    internal static readonly DependencyProperty DefaultToolTipProperty = DependencyProperty.Register(
+        "DefaultToolTip",
+        typeof(object),
+        typeof(TabViewGroupHeader),
+        new PropertyMetadata(null, (d, _) => d.CoerceValue(ToolTipProperty))
+    );
+
+    static TabViewGroupHeader()
+    {
+        // Coercion preserves the application's local value, binding and style underneath.
+        ToolTipProperty.OverrideMetadata(
+            typeof(TabViewGroupHeader),
+            new FrameworkPropertyMetadata(null, null, (d, value) =>
+            {
+                TabViewGroupHeader header = (TabViewGroupHeader)d;
+                return header.TabView.ResolveGroupToolTip(header, value);
+            })
+        );
+    }
+
     internal TabView TabView { get; } = tabView;
     internal TabGroup Group { get; } = group;
 

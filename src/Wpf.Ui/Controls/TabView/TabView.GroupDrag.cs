@@ -53,6 +53,34 @@ public partial class TabView
             }
         }
 
+        if (_groupPanel != null)
+        {
+            Point point = e.GetPosition(_groupPanel);
+            var blocks = _groupPanel.GetDropBlocks();
+            // Reserve the strip's leading edge for inserting outside the first group.
+            // Local panel coordinates already follow data order in both LTR and RTL.
+            if (
+                blocks.Count > 0
+                && blocks[0].Group is TabGroup firstGroup
+                && point.X >= blocks[0].Bounds.Left
+                && point.X < (blocks[0].Bounds.Left + 6)
+                && point.Y >= blocks[0].Bounds.Top
+                && point.Y < blocks[0].Bounds.Bottom
+            )
+            {
+                for (int i = 0; i < Items.Count; i++)
+                {
+                    if (
+                        ItemContainerGenerator.ContainerFromIndex(i) is TabViewItem member
+                        && member.GroupId == firstGroup.Id
+                    )
+                    {
+                        return new(null, Items[i], false, false, _groupPanel);
+                    }
+                }
+            }
+        }
+
         FrameworkElement? hit = _groupPanel?.GetDropElement(e.GetPosition(_groupPanel));
         if (hit is System.Windows.Controls.Button header)
         {
@@ -86,10 +114,7 @@ public partial class TabView
         {
             TryGetGroup(tab, out TabGroup? group);
             bool after = tabPoint.X >= tab.ActualWidth / 2;
-            if (FlowDirection == FlowDirection.RightToLeft)
-            {
-                after = !after;
-            }
+            // WPF has already mirrored these local coordinates in RTL layouts.
 
             return new(group?.Id, Items[index], after, false, tab);
         }
@@ -239,57 +264,100 @@ public partial class TabView
         after.RemoveAt(oldIndex);
         after.Insert(newIndex, data.Item);
         string? oldGroup = tab!.GroupId;
+        TryGetGroup(tab, out TabGroup? sourceGroup);
+        TabGroup? targetGroup = target!.GroupId == null ? null : _groupsById[target.GroupId];
+        string? anchorGroupId = (ItemContainerGenerator.ContainerFromItem(target.Anchor) as TabViewItem)?.GroupId;
+        string? expectedGroup = write == null ? oldGroup : target.GroupId;
+        bool success = false;
+        bool membershipAttempted = false;
+        bool moveAttempted = false;
+
+        bool IsValid(IReadOnlyList<object?> order) =>
+            ReferenceEquals(collection, GetMutableCollection())
+            && MatchesItems(collection, order)
+            && Items.Cast<object>().Count(item => IsSameItem(item, data.Item)) == 1
+            && ItemContainerGenerator.ContainerFromItem(data.Item) is TabViewItem current
+            && current.GroupId == expectedGroup
+            && (target.Anchor == null
+                || (ItemContainerGenerator.ContainerFromItem(target.Anchor) is TabItem anchor
+                    && (anchor as TabViewItem)?.GroupId == anchorGroupId))
+            && (sourceGroup == null || (OwnsGroup(sourceGroup) && sourceGroup.Id == oldGroup))
+            && (targetGroup == null || (OwnsGroup(targetGroup) && targetGroup.Id == target.GroupId));
+
         _isUpdating = true;
         try
         {
-            if (write != null && !write.Set(target!.GroupId))
+            if (write != null)
             {
-                write.Set(oldGroup);
-                return false;
+                membershipAttempted = true;
+                if (!write.Set(target.GroupId))
+                {
+                    return false;
+                }
             }
 
             // A model setter may run arbitrary application code. Revalidate before touching the list.
-            if (
-                !ReferenceEquals(collection, GetMutableCollection())
-                || !MatchesItems(collection, before)
-                || (target!.GroupId != null && !_groupsById.ContainsKey(target.GroupId))
-            )
+            if (!IsValid(before))
             {
-                write?.Set(oldGroup);
                 return false;
             }
 
             if (oldIndex != newIndex)
             {
+                moveAttempted = true;
                 TabViewCollection.Move(collection, oldIndex, newIndex);
             }
 
             RefreshCollection(collection);
-            return true;
-        }
-        catch
-        {
-            // Notifications and custom setters are not transactional. Only undo our known move,
-            // never overwrite unrelated changes made by application callbacks.
-            try
+            // Plain IList refreshes regenerate containers; validate their resolved bindings too.
+            UpdateLayout();
+            if (!IsValid(after))
             {
-                if (oldIndex != newIndex && MatchesItems(collection, after))
-                {
-                    TabViewCollection.Move(collection, newIndex, oldIndex);
-                }
-            }
-            finally
-            {
-                write?.Set(oldGroup);
-                RefreshCollection(collection);
+                return false;
             }
 
-            throw;
+            if (selected == null || GetItemIndex(selected) >= 0)
+            {
+                SetCurrentValue(SelectedItemProperty, selected);
+            }
+            success = IsValid(after);
+            return success;
         }
         finally
         {
             try
             {
+                if (!success)
+                {
+                    // Restore only our known sequence, never overwrite observer list mutations.
+                    try
+                    {
+                        if (moveAttempted && ReferenceEquals(collection, GetMutableCollection()) && MatchesItems(collection, after))
+                        {
+                            TabViewCollection.Move(collection, newIndex, oldIndex);
+                            RefreshCollection(collection);
+                            UpdateLayout();
+                        }
+                    }
+                    catch
+                    {
+                        // Observers may also reject rollback; still try to restore membership.
+                    }
+
+                    try
+                    {
+                        if (membershipAttempted && ReferenceEquals(collection, GetMutableCollection())
+                            && ItemContainerGenerator.ContainerFromItem(data.Item) is TabViewItem current
+                            && current.GroupId == expectedGroup)
+                        {
+                            GroupIdWrite.TryCreate(current, IsSameItem(data.Item, current))?.Set(oldGroup);
+                        }
+                    }
+                    catch
+                    {
+                        // Keep external membership changes and rejected setters intact.
+                    }
+                }
                 InvalidateGroupLayout();
                 if (selected == null || GetItemIndex(selected) >= 0)
                 {

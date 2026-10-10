@@ -4,14 +4,31 @@
 // All Rights Reserved.
 
 using System.Collections.ObjectModel;
+using System.Windows.Data;
 using Wpf.Ui.Controls;
 
 namespace Wpf.Ui.Gallery.ViewModels.Pages.Navigation;
 
 public partial class TabViewViewModel : ViewModel
 {
+    [ObservableProperty]
+    private bool _showDevelopmentToolTip = true;
+
+    [ObservableProperty]
+    private object? _developmentToolTip = "Development documents — supplied by the ViewModel.";
+
+    partial void OnShowDevelopmentToolTipChanged(bool value) =>
+        DevelopmentToolTip = value ? "Development documents — supplied by the ViewModel." : null;
+
     private int _nextTabNumber = 3;
     private readonly List<GroupedTabDocument> _extraGroupedDocuments = new();
+
+    public TabGroup[] ToolTipGroups { get; } =
+    [
+        new() { Id = "literal", Header = "String", ToolTip = "TabGroup.ToolTip overrides the header style." },
+        new() { Id = "hidden", Header = "Explicit null", ToolTip = null },
+        new() { Id = "style", Header = "Header style" },
+    ];
 
     public ObservableCollection<TabDocument> Documents { get; } =
     [
@@ -61,6 +78,11 @@ public partial class TabViewViewModel : ViewModel
 
     public TabViewViewModel()
     {
+        BindingOperations.SetBinding(
+            Groups[0],
+            TabGroup.ToolTipProperty,
+            new Binding(nameof(DevelopmentToolTip)) { Source = this, Mode = BindingMode.OneWay }
+        );
         SelectedDocument = Documents[0];
         SelectedGroupedDocument = GroupedDocuments[1];
     }
@@ -79,6 +101,14 @@ public partial class TabViewViewModel : ViewModel
             $"Content of grouped document {number}.",
             groupId: groupId
         );
+    }
+
+    [RelayCommand]
+    private async Task ChangeBoundToolTipLaterAsync()
+    {
+        ShowDevelopmentToolTip = true;
+        await Task.Delay(TimeSpan.FromSeconds(3));
+        DevelopmentToolTip = $"Updated while hovering at {DateTime.Now:HH:mm:ss}.";
     }
 
     [RelayCommand]

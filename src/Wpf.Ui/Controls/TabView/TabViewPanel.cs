@@ -8,7 +8,7 @@ using System.Windows.Controls.Primitives;
 
 namespace Wpf.Ui.Controls;
 
-/// <summary>Provisional template panel. Group headers are arranged in a separate Canvas, never in its item children.</summary>
+/// <summary>Template panel that arranges group headers in a separate Canvas, never in its item children.</summary>
 public sealed class TabViewPanel : TabPanel
 {
     private List<UIElement> _entries = new();

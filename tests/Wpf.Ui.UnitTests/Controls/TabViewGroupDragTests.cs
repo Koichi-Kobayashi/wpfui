@@ -210,7 +210,13 @@ public partial class TabViewTests
                     {
                         DragEventArgs over = GroupDrop(view, source[0], routedSource, pointInView: point);
                         Invoke(view, handler, over);
-                        Assert.Equal(crossGroup ? DragDropEffects.None : DragDropEffects.Move, over.Effects);
+                        // The leading margin now inserts outside the first group, which requires
+                        // a membership write. Other margins retain their group-aware hit testing.
+                        bool outsideLeadingGroup = !crossGroup && point == points[0];
+                        Assert.Equal(
+                            crossGroup || outsideLeadingGroup ? DragDropEffects.None : DragDropEffects.Move,
+                            over.Effects
+                        );
                         Assert.True(over.Handled);
                     }
                 }

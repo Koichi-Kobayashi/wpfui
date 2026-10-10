@@ -17,7 +17,7 @@ public class TabViewItem : System.Windows.Controls.TabItem
     private System.Windows.Controls.Button? _closeButton;
     private bool _isGroupCollapsed;
 
-    /// <summary>Identifies the provisional <see cref="GroupId"/> dependency property.</summary>
+    /// <summary>Identifies the <see cref="GroupId"/> dependency property.</summary>
     public static readonly DependencyProperty GroupIdProperty = DependencyProperty.Register(
         nameof(GroupId),
         typeof(string),
@@ -25,7 +25,13 @@ public class TabViewItem : System.Windows.Controls.TabItem
         new PropertyMetadata(null, OnGroupIdChanged)
     );
 
-    /// <summary>Gets or sets the provisional group identifier. Null denotes an ungrouped tab.</summary>
+    /// <summary>Gets or sets the group identifier. Null, empty and undefined IDs display an ungrouped tab.</summary>
+    /// <remarks>
+    /// Bind model membership using Mode=TwoWay to allow interactive membership changes.
+    /// Only active synchronous CLR property bindings of the same type are writable; converters,
+    /// delays, validation rules, data-error validation and binding groups prevent interactive edits.
+    /// Read-only bindings still allow reordering when membership does not change.
+    /// </remarks>
     public string? GroupId
     {
         get => (string?)GetValue(GroupIdProperty);

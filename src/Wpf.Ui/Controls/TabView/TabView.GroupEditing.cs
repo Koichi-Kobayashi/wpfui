@@ -10,7 +10,9 @@ namespace Wpf.Ui.Controls;
 public partial class TabView
 {
     private bool OwnsGroup(TabGroup group) =>
-        _groupsById.TryGetValue(group.Id, out TabGroup? current) && ReferenceEquals(current, group);
+        !string.IsNullOrEmpty(group.Id)
+        && _groupsById.TryGetValue(group.Id, out TabGroup? current)
+        && ReferenceEquals(current, group);
 
     private IList? MutableGroupDefinitions() =>
         TabGroups is IList { IsReadOnly: false, IsFixedSize: false } groups ? groups : null;

@@ -108,10 +108,7 @@ public partial class TabView
             if (point.X >= block.Bounds.Left && point.X < block.Bounds.Right)
             {
                 bool after = point.X >= block.Bounds.Left + block.Bounds.Width / 2;
-                if (FlowDirection == FlowDirection.RightToLeft)
-                {
-                    after = !after;
-                }
+                // Block coordinates follow data order, including WPF's RTL mirroring.
 
                 int index = ItemContainerGenerator.IndexFromContainer(block.Visual);
                 return new(block.Group, index < 0 ? null : Items[index], after, block.Bounds);

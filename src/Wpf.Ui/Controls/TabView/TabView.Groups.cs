@@ -20,7 +20,7 @@ public partial class TabView
     private TabViewPanel? _groupPanel;
     private bool _groupSubscriptionsEnabled = true;
 
-    /// <summary>Identifies the provisional <see cref="TabGroups"/> dependency property.</summary>
+    /// <summary>Identifies the <see cref="TabGroups"/> dependency property.</summary>
     public static readonly DependencyProperty TabGroupsProperty = DependencyProperty.Register(
         nameof(TabGroups),
         typeof(IEnumerable<TabGroup>),
@@ -28,7 +28,13 @@ public partial class TabView
         new PropertyMetadata(null, OnTabGroupsChanged)
     );
 
-    /// <summary>Gets or sets provisional group definitions. Null preserves the original tab behavior.</summary>
+    /// <summary>Gets or sets group definitions. Null preserves the original tab behavior.</summary>
+    /// <remarks>
+    /// Null or empty IDs are ignored, and the first definition wins for duplicate IDs.
+    /// Groups are displayed at their first member's position; empty groups have no visible header.
+    /// Use a change-notifying collection for dynamic definitions. Standard collection views with
+    /// sorting, filtering or grouping and read-only item sources cannot be modified by this control.
+    /// </remarks>
     public IEnumerable<TabGroup>? TabGroups
     {
         get => (IEnumerable<TabGroup>?)GetValue(TabGroupsProperty);
@@ -84,6 +90,7 @@ public partial class TabView
         foreach (Button button in _groupHeaders.Values)
         {
             button.Click -= OnGroupHeaderClick;
+            button.ToolTipOpening -= OnGroupToolTipOpening;
         }
 
         _groupHeaders.Clear();
@@ -100,6 +107,7 @@ public partial class TabView
         _groupCollection = null;
         foreach (TabGroup group in _subscribedGroups)
         {
+            group.ToolTipChanged -= OnGroupToolTipChanged;
             // Freeze clears Changed handlers itself and disallows removing them afterwards.
             if (!group.IsFrozen)
             {
@@ -140,6 +148,10 @@ public partial class TabView
 
     private void OnGroupChanged(object? sender, EventArgs e)
     {
+        if (sender is TabGroup { IsChangingToolTip: true })
+        {
+            return;
+        }
         EndDrag();
         InvalidateGroupLayout();
     }
@@ -162,7 +174,7 @@ public partial class TabView
                     continue;
                 }
 
-                // PoC policy: the first definition wins; empty IDs denote no group.
+                // The first definition wins; null and empty IDs denote no group.
                 if (!string.IsNullOrEmpty(group.Id) && !_groupsById.ContainsKey(group.Id))
                 {
                     _groupsById.Add(group.Id, group);
@@ -171,6 +183,7 @@ public partial class TabView
                 if (_groupSubscriptionsEnabled && !group.IsFrozen && _subscribedGroups.Add(group))
                 {
                     group.Changed += OnGroupChanged;
+                    group.ToolTipChanged += OnGroupToolTipChanged;
                 }
             }
 
@@ -191,6 +204,7 @@ public partial class TabView
             {
                 Button button = _groupHeaders[removed];
                 button.Click -= OnGroupHeaderClick;
+                button.ToolTipOpening -= OnGroupToolTipOpening;
                 _groupHeaderLayer!.Children.Remove(button);
                 _groupHeaders.Remove(removed);
             }
@@ -210,6 +224,7 @@ public partial class TabView
                     // The internal header subtype must retain the existing Fluent button style.
                     button.SetResourceReference(StyleProperty, typeof(Button));
                     button.Click += OnGroupHeaderClick;
+                    button.ToolTipOpening += OnGroupToolTipOpening;
                     _groupHeaders.Add(group, button);
                     _groupHeaderLayer!.Children.Add(button);
                 }
@@ -352,7 +367,7 @@ public partial class TabView
         button.SetCurrentValue(BorderThicknessProperty, new Thickness(0, 0, 0, 3));
         // Frozen definitions cannot expand, but their tabs can still be moved as a group.
         button.SetCurrentValue(IsEnabledProperty, true);
-        button.SetCurrentValue(ToolTipProperty, group.IsExpanded ? "Collapse group" : "Expand group");
+        UpdateGroupToolTip(group, button);
         System.Windows.Automation.AutomationProperties.SetName(button, GroupLabel(group));
         (button as TabViewGroupHeader)?.RefreshAutomationState();
     }

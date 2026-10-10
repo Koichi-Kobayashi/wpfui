@@ -15,6 +15,46 @@ namespace Wpf.Ui.Controls;
 public class TabViewItem : System.Windows.Controls.TabItem
 {
     private System.Windows.Controls.Button? _closeButton;
+    private bool _isGroupCollapsed;
+
+    /// <summary>Identifies the <see cref="GroupId"/> dependency property.</summary>
+    public static readonly DependencyProperty GroupIdProperty = DependencyProperty.Register(
+        nameof(GroupId),
+        typeof(string),
+        typeof(TabViewItem),
+        new PropertyMetadata(null, OnGroupIdChanged)
+    );
+
+    /// <summary>Gets or sets the group identifier. Null, empty and undefined IDs display an ungrouped tab.</summary>
+    /// <remarks>
+    /// Bind model membership using Mode=TwoWay to allow interactive membership changes.
+    /// Only active synchronous CLR property bindings of the same type are writable; converters,
+    /// delays, validation rules, data-error validation and binding groups prevent interactive edits.
+    /// Read-only bindings still allow reordering when membership does not change.
+    /// </remarks>
+    public string? GroupId
+    {
+        get => (string?)GetValue(GroupIdProperty);
+        set => SetValue(GroupIdProperty, value);
+    }
+
+    internal void SetGroupCollapsed(bool collapsed)
+    {
+        if (_isGroupCollapsed == collapsed)
+        {
+            return;
+        }
+        _isGroupCollapsed = collapsed;
+        CoerceValue(VisibilityProperty);
+    }
+
+    private static void OnGroupIdChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+    {
+        if (System.Windows.Controls.ItemsControl.ItemsControlFromItemContainer(d) is TabView owner)
+        {
+            owner.OnGroupMembershipChanged();
+        }
+    }
 
     /// <summary>Identifies the <see cref="IsClosable"/> dependency property.</summary>
     public static readonly DependencyProperty IsClosableProperty = DependencyProperty.Register(
@@ -51,6 +91,14 @@ public class TabViewItem : System.Windows.Controls.TabItem
 
     static TabViewItem()
     {
+        VisibilityProperty.OverrideMetadata(
+            typeof(TabViewItem),
+            new FrameworkPropertyMetadata(
+                Visibility.Visible,
+                null,
+                (d, value) => ((TabViewItem)d)._isGroupCollapsed ? Visibility.Collapsed : value
+            )
+        );
         DefaultStyleKeyProperty.OverrideMetadata(
             typeof(TabViewItem),
             new FrameworkPropertyMetadata(typeof(TabViewItem))

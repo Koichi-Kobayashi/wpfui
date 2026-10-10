@@ -19,7 +19,8 @@ namespace Wpf.Ui.Controls;
 /// Handlers that perform their own collection updates must set Cancel to true.
 /// </summary>
 [TemplatePart(Name = "PART_AddButton", Type = typeof(System.Windows.Controls.Button))]
-public class TabView : System.Windows.Controls.TabControl
+[TemplatePart(Name = "PART_GroupHeaders", Type = typeof(System.Windows.Controls.Canvas))]
+public partial class TabView : System.Windows.Controls.TabControl
 {
     private readonly HashSet<TabViewItem> _containers = new();
     private System.Windows.Controls.Button? _addButton;
@@ -96,16 +97,20 @@ public class TabView : System.Windows.Controls.TabControl
         {
             _containers.Add(container);
             AttachContainer(container);
+            InvalidateGroupLayout();
         }
     }
 
     /// <inheritdoc />
     protected override void ClearContainerForItemOverride(DependencyObject element, object item)
     {
+        BeforeGroupContainerCleared(element);
         if (element is TabViewItem container)
         {
             container.CloseRequested -= OnTabCloseRequested;
             _containers.Remove(container);
+            container.SetGroupCollapsed(false);
+            InvalidateGroupLayout();
         }
 
         if (element == _draggedTab)
@@ -119,8 +124,10 @@ public class TabView : System.Windows.Controls.TabControl
     /// <inheritdoc />
     protected override void OnItemsSourceChanged(IEnumerable oldValue, IEnumerable newValue)
     {
+        CloseGroupManagementUI();
         EndDrag();
         base.OnItemsSourceChanged(oldValue, newValue);
+        InvalidateGroupLayout();
     }
 
     /// <inheritdoc />
@@ -128,9 +135,11 @@ public class TabView : System.Windows.Controls.TabControl
     {
         EndDrag();
         DetachAddButton();
+        DetachGroupTemplate();
         base.OnApplyTemplate();
         _addButton = GetTemplateChild("PART_AddButton") as System.Windows.Controls.Button;
         AttachAddButton();
+        AttachGroupTemplate();
     }
 
     private void AttachAddButton()
@@ -158,6 +167,7 @@ public class TabView : System.Windows.Controls.TabControl
 
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
+        ResumeGroups();
         AttachAddButton();
         foreach (TabViewItem container in _containers)
         {
@@ -168,6 +178,7 @@ public class TabView : System.Windows.Controls.TabControl
     private void OnUnloaded(object sender, RoutedEventArgs e)
     {
         EndDrag();
+        SuspendGroups();
         DetachAddButton();
         foreach (TabViewItem container in _containers)
         {
@@ -188,7 +199,7 @@ public class TabView : System.Windows.Controls.TabControl
         e.Handled = true;
         if (CanAddTabs)
         {
-            AddTab();
+            AddTabCore(null, null, IsGroupingActive ? TabAddMode.AfterSelection : TabAddMode.Append);
         }
     }
 
@@ -196,7 +207,10 @@ public class TabView : System.Windows.Controls.TabControl
     /// Requests a new tab. With ItemsSource, supply a compatible Item or TabItem in TabAdding.
     /// Unsupported collections are left unchanged. Content and header apply to TabViewItem entries.
     /// </summary>
-    public void AddTab(object? content = null, string? header = null)
+    public void AddTab(object? content = null, string? header = null) =>
+        AddTabCore(content, header, TabAddMode.Append);
+
+    private void AddTabCore(object? content, string? header, TabAddMode mode, TabGroup? explicitGroup = null)
     {
         if (_isUpdating)
         {
@@ -208,9 +222,42 @@ public class TabView : System.Windows.Controls.TabControl
         {
             IEnumerable? source = ItemsSource;
             int count = Items.Count;
-            TabViewItemAddingEventArgs args = new();
+            object? selected = SelectedItem;
+            bool contextual = mode != TabAddMode.Append;
+            object[]? snapshot = contextual ? Items.Cast<object>().ToArray() : null;
+            TabGroup? group = explicitGroup;
+            if (
+                mode == TabAddMode.AfterSelection
+                && ItemContainerGenerator.ContainerFromItem(selected) is TabViewItem selectedTab
+            )
+            {
+                TryGetGroup(selectedTab, out group);
+            }
+
+            string? targetGroupId = group?.Id;
+            if (mode == TabAddMode.GroupEnd && !AddTargetIsValid(group, targetGroupId))
+            {
+                return;
+            }
+
+            int insertionIndex = contextual
+                ? ResolveAddIndex(mode, snapshot!, selected, targetGroupId)
+                : count;
+            TabViewItemAddingEventArgs args = new(targetGroupId);
             TabAdding?.Invoke(this, args);
-            if (args.Cancel || source != ItemsSource || count != Items.Count)
+            if (
+                args.Cancel
+                || source != ItemsSource
+                || count != Items.Count
+                || (
+                    contextual
+                    && (
+                        !MatchesItems(Items, snapshot!)
+                        || !AddTargetIsValid(group, targetGroupId)
+                        || (mode == TabAddMode.AfterSelection && !IsSameItem(selected, SelectedItem))
+                    )
+                )
+            )
             {
                 return;
             }
@@ -245,9 +292,24 @@ public class TabView : System.Windows.Controls.TabControl
                 }
             }
 
-            collection.Add(item);
-            RefreshCollection(collection);
-            SetCurrentValue(SelectedItemProperty, item);
+            if (contextual)
+            {
+                InsertRequestedTab(
+                    collection,
+                    item,
+                    SelectedItem,
+                    group,
+                    snapshot!,
+                    insertionIndex,
+                    targetGroupId
+                );
+            }
+            else
+            {
+                collection.Add(item);
+                RefreshCollection(collection);
+                SetCurrentValue(SelectedItemProperty, item);
+            }
         }
         finally
         {
@@ -360,6 +422,7 @@ public class TabView : System.Windows.Controls.TabControl
         IList? collection = GetMutableCollection();
         if (
             _isUpdating
+            || IsGroupingActive
             || !CanReorderTabs
             || collection == null
             || oldIndex < 0
@@ -401,8 +464,17 @@ public class TabView : System.Windows.Controls.TabControl
             !CanReorderTabs
             || GetMutableCollection() == null
             || e.OriginalSource is not DependencyObject source
-            || ItemsControl.ContainerFromElement(this, source) is not TabItem tab
         )
+        {
+            return;
+        }
+
+        if (TryBeginWholeGroupDrag(source, e.GetPosition(this)))
+        {
+            return;
+        }
+
+        if (ItemsControl.ContainerFromElement(this, source) is not TabItem tab)
         {
             return;
         }
@@ -430,7 +502,7 @@ public class TabView : System.Windows.Controls.TabControl
     protected override void OnPreviewMouseMove(MouseEventArgs e)
     {
         base.OnPreviewMouseMove(e);
-        if (_isDragging || _draggedTab == null)
+        if (_isDragging || (_draggedTab == null && _draggedGroup == null))
         {
             return;
         }
@@ -450,8 +522,9 @@ public class TabView : System.Windows.Controls.TabControl
             return;
         }
 
-        int index = ItemContainerGenerator.IndexFromContainer(_draggedTab);
-        if (index < 0)
+        TabDragData? data = _draggedGroup == null ? null : CreateWholeGroupDragData(_draggedGroup);
+        int index = _draggedTab == null ? -1 : ItemContainerGenerator.IndexFromContainer(_draggedTab);
+        if (data == null && index < 0)
         {
             EndDrag();
             return;
@@ -460,7 +533,23 @@ public class TabView : System.Windows.Controls.TabControl
         _isDragging = true;
         try
         {
-            DragDrop.DoDragDrop(_draggedTab, new TabDragData(this, Items[index]), DragDropEffects.Move);
+            if (_draggedGroupHeader != null)
+            {
+                // ButtonBase otherwise keeps mouse capture and may raise Click after the drag.
+                _draggedGroupHeader.ReleaseMouseCapture();
+                e.Handled = true;
+            }
+
+            if (!_isDragging)
+            {
+                return;
+            }
+
+            DragDrop.DoDragDrop(
+                (DependencyObject?)_draggedGroupHeader ?? _draggedTab!,
+                data ?? new TabDragData(this, Items[index]),
+                DragDropEffects.Move
+            );
         }
         finally
         {
@@ -482,10 +571,37 @@ public class TabView : System.Windows.Controls.TabControl
     protected override void OnDragOver(DragEventArgs e)
     {
         base.OnDragOver(e);
-        if (e.Data.GetData(typeof(TabDragData)) is TabDragData data && data.Owner == this)
+        if (e.Data.GetData(typeof(TabDragData)) is TabDragData data)
         {
+            if (RejectForeignGroupDrag(data, e))
+            {
+                return;
+            }
+
+            if (data.Owner != this)
+            {
+                return;
+            }
+
+            if (IsGroupingActive)
+            {
+                UpdateGroupDragFeedback(data, e);
+                return;
+            }
+
+            if (data.Group != null)
+            {
+                e.Effects = DragDropEffects.None;
+                e.Handled = true;
+                return;
+            }
+
             e.Effects =
-                _isDragging && CanReorderTabs && GetMutableCollection() != null && GetDropTarget(e) != null
+                _isDragging
+                && !IsGroupingActive
+                && CanReorderTabs
+                && GetMutableCollection() != null
+                && GetDropTarget(e) != null
                     ? DragDropEffects.Move
                     : DragDropEffects.None;
             e.Handled = true;
@@ -496,7 +612,12 @@ public class TabView : System.Windows.Controls.TabControl
     protected override void OnDrop(DragEventArgs e)
     {
         base.OnDrop(e);
-        if (e.Data.GetData(typeof(TabDragData)) is not TabDragData data || data.Owner != this)
+        if (e.Data.GetData(typeof(TabDragData)) is not TabDragData data)
+        {
+            return;
+        }
+
+        if (RejectForeignGroupDrag(data, e) || data.Owner != this)
         {
             return;
         }
@@ -505,6 +626,27 @@ public class TabView : System.Windows.Controls.TabControl
         try
         {
             if (!_isDragging)
+            {
+                e.Effects = DragDropEffects.None;
+                return;
+            }
+
+            if (IsGroupingActive)
+            {
+                e.Effects = DragDropEffects.None;
+                if (
+                    data.Group != null
+                        ? ApplyWholeGroupDrop(data, GetWholeGroupDropTarget(e))
+                        : ApplyGroupDrop(data, GetGroupDropTarget(e, data))
+                )
+                {
+                    e.Effects = DragDropEffects.Move;
+                }
+
+                return;
+            }
+
+            if (data.Group != null)
             {
                 e.Effects = DragDropEffects.None;
                 return;
@@ -538,7 +680,10 @@ public class TabView : System.Windows.Controls.TabControl
 
     private void EndDrag()
     {
+        ShowDropIndicator(null);
         _draggedTab = null;
+        _draggedGroup = null;
+        _draggedGroupHeader = null;
         _isDragging = false;
     }
 
@@ -560,8 +705,21 @@ public class TabView : System.Windows.Controls.TabControl
 
     private sealed class TabDragData(TabView owner, object item)
     {
+        public TabGroup? Group { get; init; }
+
+        public object[]? Snapshot { get; init; }
+
+        public string?[]? Memberships { get; init; }
+
+        public TabGroup[]? Definitions { get; init; }
+
         public TabView Owner { get; } = owner;
 
         public object Item { get; } = item;
+
+        public string? GroupId { get; } =
+            (
+                owner.ItemContainerGenerator.ContainerFromIndex(owner.GetItemIndex(item)) as TabViewItem
+            )?.GroupId;
     }
 }

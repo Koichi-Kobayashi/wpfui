@@ -13,6 +13,20 @@
     ui:Design.Foreground="{DynamicResource TextFillColorPrimaryBrush}"
     Foreground="{DynamicResource TextFillColorPrimaryBrush}"
     mc:Ignorable="d">
+    <Page.Resources>
+        <Style x:Key="GroupedDocumentStyle" TargetType="ui:TabViewItem" BasedOn="{StaticResource {x:Type ui:TabViewItem}}">
+            <Setter Property="Header" Value="{Binding Header}" />
+            <Setter Property="IsClosable" Value="{Binding IsClosable}" />
+            <Setter Property="GroupId" Value="{Binding GroupId, Mode=TwoWay}" />
+            <Setter Property="ContentTemplate">
+                <Setter.Value>
+                    <DataTemplate>
+                        <TextBlock Margin="12" Text="{Binding Content}" />
+                    </DataTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Page.Resources>
     <StackPanel Margin="0,0,0,24">
         <controls:ControlExample HeaderText="Document tabs." XamlCode="&lt;ui:TabView&gt;&#10;    &lt;ui:TabViewItem Header=&quot;Welcome&quot; IsClosable=&quot;False&quot; /&gt;&#10;&lt;/ui:TabView&gt;">
             <ui:TabView Margin="0,8,0,0" TabAdding="OnTabAdding">
@@ -44,6 +58,135 @@
                     </Style>
                 </ui:TabView.ItemContainerStyle>
             </ui:TabView>
+        </controls:ControlExample>
+        <controls:ControlExample
+            Margin="0,24,0,0"
+            HeaderText="Tab groups (MVVM, left to right)."
+            XamlCode="&lt;ui:TabView ItemsSource=&quot;{Binding GroupedDocuments}&quot; TabGroups=&quot;{Binding Groups}&quot; /&gt;">
+            <StackPanel>
+                <TextBlock TextWrapping="Wrap" Text="Drag a group header to move all its tabs before or after another group or an ungrouped tab, even when collapsed. A short click still expands or collapses the group. Drag to either side of a tab to reorder or change its group. Drop on a colored group header to append, even when collapsed. Drop on Home or Notes to ungroup. The insertion line or header outline indicates an allowed drop; Esc cancels. Collapse a group to keep its selected document open." />
+                <ItemsControl ItemsSource="{Binding Groups}" Margin="0,8,0,0">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <CheckBox Margin="0,0,16,0" Content="{Binding Header}" IsChecked="{Binding IsExpanded, Mode=TwoWay}" />
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                <TextBlock Margin="0,8,0,0" TextWrapping="Wrap"
+                           Text="Right-click a group header to edit its name and color, ungroup its tabs, or add a new tab to that group. Try selecting a Development tab, then right-click Reference and choose Add new tab to this group: the new tab appears at the end of Reference, even when collapsed. The + button still adds after the selected tab. Right-click a tab to create a group, change its group, or remove its membership. Enter applies the editor; Escape cancels. Moving the last tab out hides the old header but retains its definition. Disabled commands indicate read-only data or bindings." />
+                <WrapPanel Margin="0,8,0,0">
+                    <CheckBox Margin="0,0,16,0" Content="Show Development tooltip"
+                              IsChecked="{Binding ShowDevelopmentToolTip, Mode=TwoWay}" />
+                    <Button Content="Add a long tab row" Command="{Binding AddLongTabRowCommand}" />
+                    <Button Margin="8,0,0,0" Content="Remove extra tabs" Command="{Binding RemoveExtraGroupedTabsCommand}" />
+                    <Button Margin="8,0,0,0" Content="Change bound tooltip in 3 seconds"
+                            Command="{Binding ChangeBoundToolTipLaterCommand}" />
+                </WrapPanel>
+                <TextBlock Margin="0,8,0,0" TextWrapping="Wrap" Text="Hover Development for a ViewModel-supplied tooltip; uncheck the option to hide it using a null binding value. Reference uses the default expand / collapse description. Applications can override the TabViewGroupCollapseToolTip and TabViewGroupExpandToolTip string resources for localization." />
+                <TextBlock Margin="0,8,0,0" TextWrapping="Wrap"
+                           Text="Colored regions distinguish Development and Reference from ungrouped tabs. The + button adds after the selected tab and uses its group; Home and Notes create ungrouped tabs. A collapsed destination expands after the new tab is added. Add long tabs to show the scroll arrows; use the mouse wheel over the strip. Remove extras or collapse both groups to hide the arrows. Use the Gallery theme selector to compare Light and Dark." />
+                <TextBlock Margin="0,8,0,8" TextWrapping="Wrap"
+                           Text="Keyboard: Tab / Shift+Tab access group headers. Left / Right move through visible tabs and headers; Home / End reach the strip ends. Enter / Space expand or collapse a focused group without changing its selected document. Ctrl+Tab / Ctrl+Shift+Tab select the next / previous visible tab. Offscreen headers scroll into view. In the editor, Enter applies and Escape cancels. Narrator: press Windows+Ctrl+Enter, focus a group header, and check its name and expanded / collapsed state; collapsed groups keep the selected document open." />
+                <ui:TabView
+                    Margin="0,8,0,0"
+                    ItemsSource="{Binding GroupedDocuments}"
+                    SelectedItem="{Binding SelectedGroupedDocument, Mode=TwoWay}"
+                    ItemContainerStyle="{StaticResource GroupedDocumentStyle}"
+                    TabGroups="{Binding Groups}"
+                    TabAdding="OnGroupedTabAdding"
+                    TabClosing="OnModelTabClosing">
+                </ui:TabView>
+                <Expander Header="ViewModel group membership" Margin="0,8,0,0">
+                    <StackPanel>
+                        <ItemsControl ItemsSource="{Binding Groups}" Margin="0,0,0,8">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="{Binding Header}" Width="180" />
+                                        <TextBlock Text="{Binding Color}" Width="120" />
+                                        <TextBlock Text="{Binding Id}" />
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <ItemsControl ItemsSource="{Binding GroupedDocuments}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="{Binding Header}" Width="180" />
+                                        <TextBlock Text="{Binding GroupId, TargetNullValue='Ungrouped'}" />
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </Expander>
+            </StackPanel>
+        </controls:ControlExample>
+        <controls:ControlExample Margin="0,24,0,0"
+                                 HeaderText="Tab groups (MVVM, right to left)."
+                                 XamlCode="&lt;ui:TabView FlowDirection=&quot;RightToLeft&quot; ItemsSource=&quot;{Binding GroupedDocuments}&quot; TabGroups=&quot;{Binding Groups}&quot; /&gt;">
+            <StackPanel>
+                <TextBlock TextWrapping="Wrap"
+                           Text="This RTL strip shares the LTR sample's models, group definitions and selection. Compare both after each drop. Drag tabs within or between groups, onto Home / Notes to ungroup, or onto a collapsed header. Drag group headers before / after groups or ungrouped tabs. In RTL, the data-order start is on the right and the end is on the left. Add long tabs above, scroll with the arrows or wheel, then check the insertion line and drop position. Drop in blank strip space to append; the + button is outside the drop area. Esc cancels." />
+                <ui:TabView Margin="0,8,0,0" FlowDirection="RightToLeft"
+                            ItemsSource="{Binding GroupedDocuments}"
+                            SelectedItem="{Binding SelectedGroupedDocument, Mode=TwoWay}"
+                            ItemContainerStyle="{StaticResource GroupedDocumentStyle}"
+                            TabGroups="{Binding Groups}"
+                            TabAdding="OnGroupedTabAdding"
+                            TabClosing="OnModelTabClosing" />
+            </StackPanel>
+        </controls:ControlExample>
+        <controls:ControlExample Margin="0,24,0,0" HeaderText="ToolTip priority and explicit null."
+                                 XamlCode="&lt;ui:TabGroup Id=&quot;literal&quot; ToolTip=&quot;Custom text&quot; /&gt;&#10;&lt;ui:TabGroup Id=&quot;hidden&quot; ToolTip=&quot;{x:Null}&quot; /&gt;">
+            <StackPanel>
+                <TextBlock TextWrapping="Wrap"
+                           Text="Hover these headers: String uses TabGroup.ToolTip, Explicit null shows nothing, and Header style uses the locally scoped button style. Collapse / expand and select tabs; the style must remain effective. Above, Reference demonstrates the default explanation and Development demonstrates a binding (including null). Click Change bound tooltip in 3 seconds, then hover Development and keep the pointer still to check the displayed tooltip update." />
+                <ui:TabView Margin="0,8,0,0" TabGroups="{Binding ToolTipGroups}"
+                            CanAddTabs="False" CanReorderTabs="False">
+                    <ui:TabView.Resources>
+                        <Style TargetType="ui:Button" BasedOn="{StaticResource {x:Type ui:Button}}">
+                            <Setter Property="ToolTip" Value="Tooltip supplied by the header button style." />
+                        </Style>
+                    </ui:TabView.Resources>
+                    <ui:TabViewItem Header="Literal document" GroupId="literal" IsClosable="False" />
+                    <ui:TabViewItem Header="Hidden tooltip document" GroupId="hidden" IsClosable="False" />
+                    <ui:TabViewItem Header="Styled document" GroupId="style" IsClosable="False" />
+                </ui:TabView>
+            </StackPanel>
+        </controls:ControlExample>
+        <Expander Header="Final visual and accessibility checks" Margin="0,24,0,0">
+            <TextBlock Margin="12" TextWrapping="Wrap"
+                       Text="Use the Gallery theme selector for Light / Dark. In Windows accessibility settings, enable a contrast theme and check group outlines, text and keyboard focus. In Windows display settings, test 100%, 125% and 150% scaling on the Gallery's monitor (restart Gallery if needed); resize and scroll at each scale. Right-click a group to apply a long name, then an empty name, and check layout, focus, tooltip and drag bounds. Tab to a group header; Enter / Space should toggle it without changing the selected content. Check arrows, Home / End and Ctrl+Tab in both directions. Start Narrator with Windows+Ctrl+Enter and verify group names, expanded / collapsed state and ordinary tab selection; an empty name is announced as Unnamed group. These OS and screen-reader checks require manual verification." />
+        </Expander>
+        <controls:ControlExample
+            Margin="0,24,0,0"
+            HeaderText="Tab groups with read-only membership."
+            XamlCode="&lt;Setter Property=&quot;GroupId&quot; Value=&quot;{Binding GroupId, Mode=OneWay}&quot; /&gt;">
+            <StackPanel>
+                <TextBlock TextWrapping="Wrap" Text="These same models use OneWay membership bindings here. Reordering within a group and moving a whole group by its header are allowed; changing an individual tab to another group is rejected with the no-drop cursor. Try the writable group sample above to move tabs between groups." />
+                <ui:TabView Margin="0,8,0,0" CanAddTabs="False"
+                            ItemsSource="{Binding GroupedDocuments}" TabGroups="{Binding Groups}">
+                    <ui:TabView.ItemContainerStyle>
+                        <Style TargetType="ui:TabViewItem" BasedOn="{StaticResource {x:Type ui:TabViewItem}}">
+                            <Setter Property="Header" Value="{Binding Header}" />
+                            <Setter Property="IsClosable" Value="False" />
+                            <Setter Property="GroupId" Value="{Binding GroupId, Mode=OneWay}" />
+                            <Setter Property="ContentTemplate">
+                                <Setter.Value>
+                                    <DataTemplate>
+                                        <TextBlock Margin="12" Text="{Binding Content}" />
+                                    </DataTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </Style>
+                    </ui:TabView.ItemContainerStyle>
+                </ui:TabView>
+            </StackPanel>
         </controls:ControlExample>
     </StackPanel>
 </Page>

@@ -45,6 +45,11 @@ public partial class TabViewPage : INavigableView<TabViewViewModel>
     private void OnModelTabClosing(object sender, TabViewItemClosingEventArgs e)
     {
         // Business rules use the model, not the generated TabViewItem.
-        e.Cancel = e.Item is TabDocument { IsClosable: false };
+        e.Cancel = e.Item is TabDocument { IsClosable: false } or GroupedTabDocument { IsClosable: false };
+    }
+
+    private void OnGroupedTabAdding(object sender, TabViewItemAddingEventArgs e)
+    {
+        e.Item = ViewModel.CreateGroupedDocument(e.TargetGroupId);
     }
 }

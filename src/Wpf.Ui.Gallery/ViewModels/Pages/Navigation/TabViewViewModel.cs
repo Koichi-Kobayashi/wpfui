@@ -4,12 +4,31 @@
 // All Rights Reserved.
 
 using System.Collections.ObjectModel;
+using System.Windows.Data;
+using Wpf.Ui.Controls;
 
 namespace Wpf.Ui.Gallery.ViewModels.Pages.Navigation;
 
 public partial class TabViewViewModel : ViewModel
 {
+    [ObservableProperty]
+    private bool _showDevelopmentToolTip = true;
+
+    [ObservableProperty]
+    private object? _developmentToolTip = "Development documents — supplied by the ViewModel.";
+
+    partial void OnShowDevelopmentToolTipChanged(bool value) =>
+        DevelopmentToolTip = value ? "Development documents — supplied by the ViewModel." : null;
+
     private int _nextTabNumber = 3;
+    private readonly List<GroupedTabDocument> _extraGroupedDocuments = new();
+
+    public TabGroup[] ToolTipGroups { get; } =
+    [
+        new() { Id = "literal", Header = "String", ToolTip = "TabGroup.ToolTip overrides the header style." },
+        new() { Id = "hidden", Header = "Explicit null", ToolTip = null },
+        new() { Id = "style", Header = "Header style" },
+    ];
 
     public ObservableCollection<TabDocument> Documents { get; } =
     [
@@ -20,14 +39,101 @@ public partial class TabViewViewModel : ViewModel
     [ObservableProperty]
     private TabDocument? _selectedDocument;
 
+    public ObservableCollection<TabGroup> Groups { get; } =
+    [
+        new()
+        {
+            Id = "development",
+            Header = "Development",
+            Color = System.Windows.Media.Colors.DodgerBlue,
+        },
+        new()
+        {
+            Id = "reference",
+            Header = "Reference",
+            Color = System.Windows.Media.Colors.MediumSeaGreen,
+        },
+    ];
+
+    public ObservableCollection<GroupedTabDocument> GroupedDocuments { get; } =
+    [
+        new("Home", "An ungrouped, non-closable tab.", false),
+        new(
+            "Main.xaml",
+            "Collapse Development: the selected document remains visible.",
+            groupId: "development"
+        ),
+        new("ViewModel.cs", "Another development document.", groupId: "development"),
+        new("Notes", "An ungrouped tab between groups."),
+        new("README.md", "A reference document.", groupId: "reference"),
+        new(
+            "Guide.md",
+            "The remaining Reference tab keeps its original group name and color when README.md is moved.",
+            groupId: "reference"
+        ),
+    ];
+
+    [ObservableProperty]
+    private GroupedTabDocument? _selectedGroupedDocument;
+
     public TabViewViewModel()
     {
+        BindingOperations.SetBinding(
+            Groups[0],
+            TabGroup.ToolTipProperty,
+            new Binding(nameof(DevelopmentToolTip)) { Source = this, Mode = BindingMode.OneWay }
+        );
         SelectedDocument = Documents[0];
+        SelectedGroupedDocument = GroupedDocuments[1];
     }
 
     public TabDocument CreateDocument()
     {
         int number = _nextTabNumber++;
         return new TabDocument($"Document {number}", $"Content of document {number}.");
+    }
+
+    public GroupedTabDocument CreateGroupedDocument(string? groupId = null)
+    {
+        int number = _nextTabNumber++;
+        return new GroupedTabDocument(
+            $"Grouped document {number}",
+            $"Content of grouped document {number}.",
+            groupId: groupId
+        );
+    }
+
+    [RelayCommand]
+    private async Task ChangeBoundToolTipLaterAsync()
+    {
+        ShowDevelopmentToolTip = true;
+        await Task.Delay(TimeSpan.FromSeconds(3));
+        DevelopmentToolTip = $"Updated while hovering at {DateTime.Now:HH:mm:ss}.";
+    }
+
+    [RelayCommand]
+    private void AddLongTabRow()
+    {
+        for (int i = 0; i < 10; i++)
+        {
+            GroupedTabDocument document = new(
+                $"Long document {_nextTabNumber++}.xaml",
+                "Use the arrows or the mouse wheel over the header strip. Switch the Gallery theme to compare Light and Dark.",
+                groupId: i % 2 == 0 ? "development" : "reference"
+            );
+            _extraGroupedDocuments.Add(document);
+            GroupedDocuments.Add(document);
+        }
+    }
+
+    [RelayCommand]
+    private void RemoveExtraGroupedTabs()
+    {
+        foreach (GroupedTabDocument document in _extraGroupedDocuments)
+        {
+            GroupedDocuments.Remove(document);
+        }
+
+        _extraGroupedDocuments.Clear();
     }
 }

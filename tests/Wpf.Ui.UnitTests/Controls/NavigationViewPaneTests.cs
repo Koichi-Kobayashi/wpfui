@@ -55,6 +55,11 @@ public class NavigationViewPaneTests
             Assert.Equal(1, search.Opacity, 1);
             foreach (VisualState state in States(view).States)
             {
+                if (state.Storyboard is null)
+                {
+                    continue;
+                }
+
                 DoubleAnimation animation = state
                     .Storyboard.Children.OfType<DoubleAnimation>()
                     .Single(timeline => Storyboard.GetTargetName(timeline) == "PaneGrid");
@@ -228,6 +233,58 @@ public class NavigationViewPaneTests
             Pump(250);
             Assert.Equal(width, Part<Grid>(view, "PaneGrid").Width, 1);
         });
+
+    [Theory]
+    [InlineData(NavigationViewPaneDisplayMode.Top)]
+    [InlineData(NavigationViewPaneDisplayMode.Bottom)]
+    [InlineData(NavigationViewPaneDisplayMode.LeftFluent)]
+    public void EmptySpaceToggle_PreservesResizedWidthAcrossDisplayModes(
+        NavigationViewPaneDisplayMode mode
+    ) =>
+        RunInSta(() =>
+        {
+            TestNavigationView view = CreateView(true);
+            view.IsPaneToggleOnEmptySpaceEnabled = true;
+            Resize(view, 430);
+            Assert.True(view.IsPaneOpen);
+
+            view.PaneDisplayMode = mode;
+            view.ApplyTemplate();
+            Pump(250);
+            view.PaneDisplayMode = NavigationViewPaneDisplayMode.Left;
+            view.ApplyTemplate();
+            Pump(250);
+            Assert.Equal(430, Part<Grid>(view, "PaneGrid").Width, 1);
+
+            Grid space = Part<Grid>(view, "PART_PaneMenuSpace");
+            Click(space);
+            Pump(250);
+            Assert.False(view.IsPaneOpen);
+            Assert.Equal(40, Part<Grid>(view, "PaneGrid").Width, 1);
+            Assert.False(Part<GridSplitter>(view, "PART_GridSplitter").IsEnabled);
+            Click(space);
+            Pump(250);
+            Assert.True(view.IsPaneOpen);
+            Assert.Equal(430, Part<Grid>(view, "PaneGrid").Width, 1);
+            Assert.True(Part<GridSplitter>(view, "PART_GridSplitter").IsEnabled);
+            Assert.True(BindingOperations.IsDataBound(view, NavigationView.OpenPaneLengthProperty));
+        });
+
+    private static void Click(UIElement target)
+    {
+        target.RaiseEvent(
+            new MouseButtonEventArgs(Mouse.PrimaryDevice, 0, MouseButton.Left)
+            {
+                RoutedEvent = Mouse.PreviewMouseDownEvent,
+            }
+        );
+        target.RaiseEvent(
+            new MouseButtonEventArgs(Mouse.PrimaryDevice, 0, MouseButton.Left)
+            {
+                RoutedEvent = Mouse.MouseUpEvent,
+            }
+        );
+    }
 
     private static TestNavigationView CreateView(bool splitterEnabled)
     {
